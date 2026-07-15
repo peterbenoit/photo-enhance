@@ -1,6 +1,13 @@
 import numpy as np
 
-from photo_enhance.presets import _curve_to_lut, apply_preset, list_presets, load_preset
+from photo_enhance.presets import (
+    _curve_to_lut,
+    apply_preset,
+    apply_preset_blended,
+    list_preset_choices,
+    list_presets,
+    load_preset,
+)
 
 
 def test_list_presets_finds_all_four_shipped_presets():
@@ -27,3 +34,40 @@ def test_apply_preset_bw_zeroes_saturation():
     b, g, r = result[0, 0]
     assert abs(int(b) - int(g)) <= 1
     assert abs(int(g) - int(r)) <= 1
+
+
+def test_list_preset_choices_includes_display_name_and_description():
+    choices = list_preset_choices()
+    ids = {c["id"] for c in choices}
+    assert ids == {"warm_film", "cool_moody", "high_contrast_bw", "faded_vintage"}
+    warm = next(c for c in choices if c["id"] == "warm_film")
+    assert warm["name"] == "Warm Film"
+    assert warm["description"]
+
+
+def test_apply_preset_blended_zero_intensity_is_a_noop():
+    img = np.full((4, 4, 3), 128, dtype=np.uint8)
+    preset = load_preset("warm_film")
+    result = apply_preset_blended(img, preset, 0.0)
+    assert np.array_equal(result, img)
+
+
+def test_apply_preset_blended_full_intensity_matches_apply_preset():
+    img = np.full((4, 4, 3), 128, dtype=np.uint8)
+    preset = load_preset("warm_film")
+    blended = apply_preset_blended(img, preset, 1.0)
+    full = apply_preset(img, preset)
+    assert np.array_equal(blended, full)
+
+
+def test_apply_preset_blended_half_intensity_is_between_original_and_full():
+    img = np.full((4, 4, 3), 128, dtype=np.uint8)
+    preset = load_preset("warm_film")
+    full = apply_preset(img, preset).astype(int)
+    half = apply_preset_blended(img, preset, 0.5).astype(int)
+    original = img.astype(int)
+    # Halfway result should sit strictly between original and full effect on channels that change.
+    changed = full != original
+    assert np.any(changed)
+    assert np.all((half[changed] >= np.minimum(original[changed], full[changed])))
+    assert np.all((half[changed] <= np.maximum(original[changed], full[changed])))

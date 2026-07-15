@@ -33,13 +33,20 @@ def _process_one(input_path: Path, output_path: Path, preset: dict | None) -> No
 @click.option("--preset", "preset_name", type=str, default=None,
               help=f"Optional creative preset. Available: {', '.join(list_presets())}")
 @click.option("--batch", is_flag=True, default=False, help="Treat input as a folder of photos.")
-def main(input_path: Path, output: Path | None, preset_name: str | None, batch: bool) -> None:
+@click.option("--overwrite", is_flag=True, default=False,
+              help="Allow output to overwrite the input file, or a batch output folder to be the input folder.")
+def main(input_path: Path, output: Path | None, preset_name: str | None, batch: bool, overwrite: bool) -> None:
     """Auto-enhance a photo (or a folder of photos with --batch)."""
     preset = load_preset(preset_name) if preset_name else None
 
     if batch:
         if not input_path.is_dir():
             raise click.UsageError("--batch requires INPUT_PATH to be a folder.")
+        if output is not None and output.resolve() == input_path.resolve() and not overwrite:
+            raise click.UsageError(
+                "Output folder is the same as the input folder, which would overwrite your "
+                "source photos. Pass --overwrite to allow this, or choose a different -o."
+            )
         files = sorted(p for p in input_path.iterdir() if is_supported_image(p))
         if not files:
             click.echo(f"No supported images found in {input_path}")
@@ -55,6 +62,11 @@ def main(input_path: Path, output: Path | None, preset_name: str | None, batch: 
         if not input_path.is_file():
             raise click.UsageError("INPUT_PATH must be a file (use --batch for a folder).")
         out_path = _output_path(input_path, output, is_batch=False)
+        if out_path.resolve() == input_path.resolve() and not overwrite:
+            raise click.UsageError(
+                "Output path is the same as the input file, which would overwrite the original. "
+                "Pass --overwrite to allow this, or choose a different -o."
+            )
         _process_one(input_path, out_path, preset)
         click.echo(f"OK   {input_path.name} -> {out_path}")
 

@@ -23,6 +23,19 @@ def load_preset(name: str) -> dict:
     return json.loads(text)
 
 
+def list_preset_choices() -> list[dict]:
+    """Presets with their display name/description, for populating UI controls."""
+    choices = []
+    for preset_id in list_presets():
+        preset = load_preset(preset_id)
+        choices.append({
+            "id": preset_id,
+            "name": preset.get("name", preset_id),
+            "description": preset.get("description", ""),
+        })
+    return choices
+
+
 def _curve_to_lut(points: list[list[int]]) -> np.ndarray:
     """Build a 256-entry LUT from control points via linear interpolation."""
     points = sorted(points)
@@ -50,3 +63,14 @@ def apply_preset(img: np.ndarray, preset: dict) -> np.ndarray:
         result = cv2.cvtColor(hsv.astype(np.uint8), cv2.COLOR_HSV2BGR)
 
     return result
+
+
+def apply_preset_blended(img: np.ndarray, preset: dict, intensity: float) -> np.ndarray:
+    """Blend between the un-presetted image (intensity=0) and the full preset effect (intensity=1)."""
+    intensity = max(0.0, min(1.0, intensity))
+    if intensity <= 0:
+        return img.copy()
+    full = apply_preset(img, preset)
+    if intensity >= 1:
+        return full
+    return cv2.addWeighted(img, 1.0 - intensity, full, intensity, 0)

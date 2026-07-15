@@ -6,10 +6,10 @@ filter presets on top.
 
 Two ways to use it:
 
-- **Web UI** (recommended if you don't use the CLI often) — drag in a photo, pick a preset, see before/after in the browser. Runs entirely on `localhost`; nothing is uploaded anywhere.
+- **Web UI** (recommended if you don't use the CLI often) — upload a photo once, then switch between filters and adjust intensity live, no re-upload needed. Runs entirely on `localhost`; nothing leaves the machine.
 - **CLI** — for batch-processing a folder of photos.
 
-See [`photo-auto-enhance-spec.md`](photo-auto-enhance-spec.md) for the original design spec, and [`TASKS.md`](TASKS.md) / [`CHANGELOG.md`](CHANGELOG.md) for build progress.
+See [`photo-auto-enhance-spec.md`](photo-auto-enhance-spec.md) for the original design spec, [`PROJECT_REVIEW.md`](PROJECT_REVIEW.md) for the outstanding review backlog, and [`TASKS.md`](TASKS.md) / [`CHANGELOG.md`](CHANGELOG.md) for build progress.
 
 ## Requirements
 
@@ -38,7 +38,13 @@ server and opens `http://127.0.0.1:5050` in your browser automatically.
 uv run photo-enhance-web
 ```
 
-Then open http://127.0.0.1:5050
+Then open http://127.0.0.1:5050. Upload a photo once — switching the filter
+dropdown or dragging the intensity slider re-applies the filter against the
+already-uploaded image (no re-upload). The server keeps the last 20 uploaded
+sessions in memory; restarting the server clears them.
+
+By default the Flask dev server runs with debug off. For local debugging,
+set `PHOTO_ENHANCE_DEBUG=1` before starting it.
 
 ## Running the CLI
 
@@ -57,6 +63,10 @@ Available presets: `warm_film`, `cool_moody`, `high_contrast_bw`, `faded_vintage
 (defined as JSON tone curves in `src/photo_enhance/preset_data/`).
 
 EXIF metadata is preserved where the source format supports it (JPEG/TIFF).
+
+By default, the CLI refuses to let an output path overwrite its input (single
+file, or a batch output folder that resolves to the input folder) — pass
+`--overwrite` to allow it explicitly.
 
 ## Running tests
 

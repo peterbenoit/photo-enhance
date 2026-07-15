@@ -14,80 +14,198 @@
       line-height: 1.4;
     }
     h1 { font-size: 1.4rem; }
-    form {
+    fieldset {
+      border: 1px solid #8883;
+      border-radius: 8px;
+      padding: 1rem;
+      margin: 0 0 1.5rem;
       display: flex;
       flex-wrap: wrap;
-      gap: 0.75rem;
+      gap: 1rem;
       align-items: center;
-      margin-bottom: 1.5rem;
     }
+    fieldset[disabled] { opacity: 0.5; }
+    label { display: flex; flex-direction: column; gap: 0.25rem; font-size: 0.9rem; }
     select, input[type="file"], button {
       font-size: 1rem;
       padding: 0.4rem 0.6rem;
     }
-    button {
-      cursor: pointer;
-    }
-    .error {
-      color: #b00020;
-    }
-    .compare {
-      display: flex;
-      gap: 1rem;
-      flex-wrap: wrap;
-    }
-    .compare figure {
-      flex: 1 1 300px;
-      margin: 0;
-    }
-    .compare img {
-      width: 100%;
-      height: auto;
-      border-radius: 6px;
-      border: 1px solid #8883;
-    }
-    figcaption {
-      text-align: center;
-      font-size: 0.9rem;
-      opacity: 0.8;
-      margin-top: 0.25rem;
-    }
-    .hint {
-      font-size: 0.85rem;
-      opacity: 0.7;
-    }
+    input[type="range"] { width: 180px; }
+    button { cursor: pointer; }
+    .error { color: #b00020; }
+    .status { opacity: 0.75; font-size: 0.9rem; min-height: 1.2em; }
+    .compare { display: flex; gap: 1rem; flex-wrap: wrap; }
+    .compare figure { flex: 1 1 300px; margin: 0; position: relative; }
+    .compare img { width: 100%; height: auto; border-radius: 6px; border: 1px solid #8883; }
+    figcaption { text-align: center; font-size: 0.9rem; opacity: 0.8; margin-top: 0.25rem; }
+    .hint { font-size: 0.85rem; opacity: 0.7; }
+    #preset-description { font-size: 0.8rem; opacity: 0.7; flex-basis: 100%; margin: 0; }
   </style>
 </head>
 <body>
   <h1>Photo Auto-Enhance</h1>
-  <p class="hint">Runs locally. Nothing leaves this machine. Same auto white-balance + levels + CLAHE pipeline as the CLI, with optional creative presets.</p>
+  <p class="hint">Runs locally. Nothing leaves this machine. Upload once, then change the preset or its intensity below without re-uploading.</p>
 
-  <form action="/enhance" method="post" enctype="multipart/form-data">
-    <input type="file" name="photo" accept="image/*" required>
-    <select name="preset">
-      <option value="">No preset (auto-enhance only)</option>
-      {% for preset in presets %}
-        <option value="{{ preset }}">{{ preset.replace('_', ' ').title() }}</option>
-      {% endfor %}
-    </select>
-    <button type="submit">Enhance</button>
+  <form id="upload-form">
+    <fieldset>
+      <label for="photo-input">Photo
+        <input type="file" id="photo-input" name="photo" accept="image/*" required>
+      </label>
+      <button type="submit" id="upload-button">Upload photo</button>
+    </fieldset>
   </form>
 
-  {% if error %}
-    <p class="error">{{ error }}</p>
-  {% endif %}
+  <fieldset id="controls" disabled>
+    <label for="preset-select">Filter
+      <select id="preset-select">
+        <option value="">No filter (auto-enhance only)</option>
+        {% for preset in presets %}
+          <option value="{{ preset.id }}">{{ preset.name }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label for="intensity-slider">Intensity <span id="intensity-value">100%</span>
+      <input type="range" id="intensity-slider" min="0" max="100" value="100" disabled>
+    </label>
+    <p id="preset-description"></p>
+  </fieldset>
 
-  {% if result %}
-    <div class="compare">
-      <figure>
-        <img src="{{ result.before }}" alt="Original photo">
-        <figcaption>Before</figcaption>
-      </figure>
-      <figure>
-        <img src="{{ result.after }}" alt="Enhanced photo">
-        <figcaption>After{% if result.preset %} — {{ result.preset.replace('_', ' ').title() }}{% endif %}</figcaption>
-      </figure>
-    </div>
-  {% endif %}
+  <p class="error" id="error-message" role="alert"></p>
+  <p class="status" id="status-message" aria-live="polite"></p>
+
+  <div class="compare" id="compare" hidden>
+    <figure>
+      <img id="before-img" alt="Original photo">
+      <figcaption>Before</figcaption>
+    </figure>
+    <figure>
+      <img id="after-img" alt="Enhanced photo">
+      <figcaption id="after-caption">After</figcaption>
+    </figure>
+  </div>
+
+  <script>
+    const PRESET_DESCRIPTIONS = {
+      {% for preset in presets %}"{{ preset.id }}": {{ preset.description|tojson }},{% endfor %}
+    };
+
+    const uploadForm = document.getElementById("upload-form");
+    const photoInput = document.getElementById("photo-input");
+    const uploadButton = document.getElementById("upload-button");
+    const controls = document.getElementById("controls");
+    const presetSelect = document.getElementById("preset-select");
+    const intensitySlider = document.getElementById("intensity-slider");
+    const intensityValue = document.getElementById("intensity-value");
+    const presetDescription = document.getElementById("preset-description");
+    const errorMessage = document.getElementById("error-message");
+    const statusMessage = document.getElementById("status-message");
+    const compare = document.getElementById("compare");
+    const beforeImg = document.getElementById("before-img");
+    const afterImg = document.getElementById("after-img");
+    const afterCaption = document.getElementById("after-caption");
+
+    let sessionId = null;
+    let applyRequestToken = 0;
+
+    function showError(message) {
+      errorMessage.textContent = message || "";
+    }
+
+    function setStatus(message) {
+      statusMessage.textContent = message || "";
+    }
+
+    function updatePresetDescription() {
+      const description = PRESET_DESCRIPTIONS[presetSelect.value] || "";
+      presetDescription.textContent = description;
+      intensitySlider.disabled = presetSelect.value === "";
+    }
+
+    async function uploadPhoto(file) {
+      showError("");
+      setStatus("Uploading…");
+      uploadButton.disabled = true;
+
+      const formData = new FormData();
+      formData.append("photo", file);
+
+      try {
+        const response = await fetch("/upload", { method: "POST", body: formData });
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data.error || "Upload failed.");
+        }
+        sessionId = data.session_id;
+        beforeImg.src = data.before;
+        afterImg.src = data.after;
+        afterCaption.textContent = "After";
+        compare.hidden = false;
+        controls.disabled = false;
+        presetSelect.value = "";
+        intensitySlider.value = 100;
+        intensityValue.textContent = "100%";
+        updatePresetDescription();
+        setStatus("Done. Try a filter below.");
+      } catch (err) {
+        showError(err.message);
+        setStatus("");
+      } finally {
+        uploadButton.disabled = false;
+      }
+    }
+
+    async function applyFilter() {
+      if (!sessionId) return;
+      showError("");
+
+      const token = ++applyRequestToken;
+      const preset = presetSelect.value;
+      const intensity = Number(intensitySlider.value);
+      setStatus("Applying…");
+
+      try {
+        const response = await fetch("/apply", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ session_id: sessionId, preset, intensity }),
+        });
+        const data = await response.json();
+        if (token !== applyRequestToken) return; // a newer request superseded this one
+        if (!response.ok) {
+          throw new Error(data.error || "Could not apply filter.");
+        }
+        afterImg.src = data.after;
+        afterCaption.textContent = preset ? `After — ${presetSelect.options[presetSelect.selectedIndex].text}` : "After";
+        setStatus("");
+      } catch (err) {
+        if (token === applyRequestToken) {
+          showError(err.message);
+          setStatus("");
+        }
+      }
+    }
+
+    uploadForm.addEventListener("submit", (event) => {
+      event.preventDefault();
+      const file = photoInput.files[0];
+      if (!file) {
+        showError("Choose a photo first.");
+        return;
+      }
+      uploadPhoto(file);
+    });
+
+    presetSelect.addEventListener("change", () => {
+      updatePresetDescription();
+      applyFilter();
+    });
+
+    let intensityDebounce = null;
+    intensitySlider.addEventListener("input", () => {
+      intensityValue.textContent = `${intensitySlider.value}%`;
+      clearTimeout(intensityDebounce);
+      intensityDebounce = setTimeout(applyFilter, 150);
+    });
+  </script>
 </body>
 </html>

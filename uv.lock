@@ -339,6 +339,7 @@ web = [
 
 [package.dev-dependencies]
 dev = [
+    { name = "flask" },
     { name = "pytest" },
 ]
 
@@ -352,7 +353,10 @@ requires-dist = [
 provides-extras = ["web"]
 
 [package.metadata.requires-dev]
-dev = [{ name = "pytest", specifier = ">=8.0" }]
+dev = [
+    { name = "flask", specifier = ">=3.0" },
+    { name = "pytest", specifier = ">=8.0" },
+]
 
 [[package]]
 name = "pillow"
