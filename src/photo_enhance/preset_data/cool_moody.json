@@ -1,0 +1,10 @@
+{
+  "name": "Cool Moody",
+  "description": "Desaturated shadows, cool blue cast, slightly crushed blacks",
+  "curve": {
+    "r": [[0, 0], [128, 118], [255, 245]],
+    "g": [[0, 5], [128, 130], [255, 250]],
+    "b": [[0, 15], [64, 80], [128, 150], [192, 205], [255, 255]]
+  },
+  "saturation": 0.8
+}

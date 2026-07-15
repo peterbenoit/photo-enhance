@@ -1,0 +1,10 @@
+{
+  "name": "High Contrast B&W",
+  "description": "Fully desaturated with a steep S-curve for punchy contrast",
+  "curve": {
+    "r": [[0, 0], [64, 40], [128, 128], [192, 215], [255, 255]],
+    "g": [[0, 0], [64, 40], [128, 128], [192, 215], [255, 255]],
+    "b": [[0, 0], [64, 40], [128, 128], [192, 215], [255, 255]]
+  },
+  "saturation": 0.0
+}

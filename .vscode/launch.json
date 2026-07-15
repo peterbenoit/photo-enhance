@@ -1,0 +1,29 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Web UI",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "photo_enhance.web",
+      "cwd": "${workspaceFolder}",
+      "python": "${workspaceFolder}/.venv/bin/python",
+      "console": "integratedTerminal",
+      "serverReadyAction": {
+        "pattern": "Running on http://127\\.0\\.0\\.1:([0-9]+)",
+        "uriFormat": "http://127.0.0.1:%s",
+        "action": "openExternally"
+      }
+    },
+    {
+      "name": "CLI: enhance (edit args below)",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "photo_enhance.cli",
+      "cwd": "${workspaceFolder}",
+      "python": "${workspaceFolder}/.venv/bin/python",
+      "console": "integratedTerminal",
+      "args": ["examples/your-photo.jpg", "--preset", "warm_film"]
+    }
+  ]
+}
