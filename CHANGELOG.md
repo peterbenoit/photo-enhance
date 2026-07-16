@@ -2,6 +2,15 @@
 
 All notable changes to this project are logged here, newest first.
 
+## 2026-07-16 — Installed-wheel smoke coverage
+
+- Added an isolated packaging regression that builds the wheel, installs it
+  with the web extra into a fresh environment, and runs both installed console
+  entry points.
+- The CLI smoke check exercises packaged preset discovery. The web check renders
+  the index through Flask's test client, catching missing templates without
+  opening a real listening socket. The suite now has 85 tests.
+
 ## 2026-07-16 — CLI path and image-format coverage
 
 - Added Click-runner regressions for default and custom output paths, preset
