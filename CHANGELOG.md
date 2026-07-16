@@ -2,6 +2,25 @@
 
 All notable changes to this project are logged here, newest first.
 
+## 2026-07-16 — Drag-and-drop and interactive comparison
+
+- Added file drag-and-drop as progressive enhancement over the unchanged native
+  file input. File drops reuse the existing upload, validation, busy, error,
+  and stale-request handling paths.
+- Added a before/after reveal controlled by a native range input stretched over
+  the image. It supports pointer, touch, arrow keys, Home, and End without a
+  custom gesture library and exposes a changing accessible value description.
+- Added an explicit comparison-view toggle. The original side-by-side view
+  remains available and is the automatic fallback when JavaScript is disabled.
+- The visual divider and 44-pixel handle update immediately during input; no
+  decorative transition delays interaction or requires a reduced-motion branch.
+- Converted the inline browser code to an ES module and added structure and
+  behavior regressions plus a rendered-template JavaScript syntax check. The
+  suite now has 73 tests.
+- Corrected the comparison direction so the original is always left of the
+  divider and the enhanced result is always right (`before | after`), including
+  visible labels and assistive-technology value text.
+
 ## 2026-07-16 — Accessible results and downloads
 
 - Added a skip link, main landmark, enhancement-controls legend, named results

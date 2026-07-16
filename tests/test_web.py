@@ -43,6 +43,24 @@ def test_index_has_accessible_landmarks_feedback_and_result_controls():
     assert 'id="download-link"' in text
 
 
+def test_index_has_progressive_dropzone_and_keyboard_comparison_controls():
+    client = app.test_client()
+    text = client.get("/").get_data(as_text=True)
+
+    assert 'id="upload-dropzone"' in text
+    assert "or drag and drop one photo here" in text
+    assert 'id="comparison-controls" hidden' in text
+    assert 'id="slider-view-button" aria-pressed="true"' in text
+    assert 'id="side-by-side-button" aria-pressed="false"' in text
+    assert 'id="comparison-range" type="range" min="0" max="100" value="50"' in text
+    assert 'aria-label="Before and after dividing line"' in text
+    assert "clip-path: inset(0 0 0 var(--comparison-position))" in text
+    assert "`${position}% original photo and ${100 - position}% enhanced photo visible`" in text
+    assert 'id="side-by-side-view"' in text
+    assert 'uploadDropzone.addEventListener("drop"' in text
+    assert 'comparisonRange.addEventListener("input"' in text
+
+
 def test_upload_without_file_returns_400():
     client = app.test_client()
     resp = client.post("/upload", data={})

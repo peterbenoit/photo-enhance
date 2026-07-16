@@ -48,6 +48,9 @@ Transparent images and images above 8 bits per channel are rejected with an
 explanation instead of being silently flattened or down-converted. After
 processing, the page shows dimensions, source/output format, active filter, and
 processing time, and provides a download link for the currently displayed JPEG.
+Photos can be selected with the native file input or dropped onto the upload
+area. Results default to a draggable before/after reveal; use its native range
+control with touch, pointer, or arrow keys, or switch to the side-by-side view.
 
 By default the Flask dev server runs with debug off. For local debugging,
 set `PHOTO_ENHANCE_DEBUG=1` before starting it.

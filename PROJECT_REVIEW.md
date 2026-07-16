@@ -82,8 +82,8 @@ P2 improves product quality; P3 contains larger, optional capabilities.
 - [x] Verify visible keyboard focus and 44-by-44-pixel target sizing for every interactive control.
 - [x] Preserve the selected preset when the form is re-rendered after success or error.
 - [x] Add a download button with a meaningful filename and the chosen format/quality settings.
-- [ ] Add a draggable before/after comparison slider while retaining a keyboard-accessible side-by-side mode.
-- [ ] Add drag-and-drop as a progressive enhancement without removing the native file input.
+- [x] Add a draggable before/after comparison slider while retaining a keyboard-accessible side-by-side mode.
+- [x] Add drag-and-drop as a progressive enhancement without removing the native file input.
 - [x] Show image dimensions, output format, preset, and processing time with the result.
 - [ ] Avoid embedding two large base64 images directly in the HTML; use short-lived in-memory result URLs or browser-side object URLs with explicit cleanup.
 - [x] Prevent accidental duplicate submissions and show a processing state for large photos.

@@ -10,12 +10,14 @@
       --error-color: #b42318;
       --focus-color: #005fcc;
       --border-color: #767676;
+      --drop-background: #eaf3ff;
     }
     @media (prefers-color-scheme: dark) {
       :root {
         --error-color: #ffb4ab;
         --focus-color: #8ec8ff;
         --border-color: #a9a9a9;
+        --drop-background: #102a43;
       }
     }
     body {
@@ -50,6 +52,13 @@
       align-items: center;
     }
     fieldset[disabled] { opacity: 0.5; }
+    .upload-dropzone { position: relative; }
+    .upload-dropzone.is-dragging {
+      background: var(--drop-background);
+      outline: 3px dashed var(--focus-color);
+      outline-offset: -6px;
+    }
+    .drop-hint { margin: 0; font-size: 0.9rem; }
     label { display: flex; flex-direction: column; gap: 0.25rem; font-size: 0.9rem; }
     select, input[type="file"], button, .download-link {
       font-size: 1rem;
@@ -80,6 +89,99 @@
     .result-details div { display: flex; gap: 0.35rem; }
     .result-details dt { font-weight: 600; }
     .result-details dd { margin: 0; }
+    .comparison-controls { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
+    .comparison-controls p { margin: 0 0.5rem 0 0; }
+    .comparison-controls button[aria-pressed="true"] {
+      border: 2px solid var(--focus-color);
+      font-weight: 700;
+    }
+    .comparison-slider {
+      --comparison-position: 50%;
+      position: relative;
+      overflow: hidden;
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      margin-top: 1rem;
+      line-height: 0;
+      user-select: none;
+    }
+    .comparison-slider img {
+      display: block;
+      width: 100%;
+      height: auto;
+    }
+    .comparison-after {
+      position: absolute;
+      inset: 0;
+      clip-path: inset(0 0 0 var(--comparison-position));
+      pointer-events: none;
+    }
+    .comparison-after img { width: 100%; height: 100%; object-fit: fill; }
+    .comparison-label {
+      position: absolute;
+      top: 0.75rem;
+      padding: 0.25rem 0.45rem;
+      background: rgb(0 0 0 / 72%);
+      color: white;
+      border-radius: 3px;
+      font-size: 0.8rem;
+      line-height: 1.2;
+      pointer-events: none;
+    }
+    .comparison-label-before { left: 0.75rem; }
+    .comparison-label-after { right: 0.75rem; }
+    .comparison-divider {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      left: var(--comparison-position);
+      width: 3px;
+      transform: translateX(-50%);
+      background: white;
+      box-shadow: 0 0 0 1px rgb(0 0 0 / 55%);
+      pointer-events: none;
+    }
+    .comparison-handle {
+      position: absolute;
+      left: var(--comparison-position);
+      top: 50%;
+      width: 44px;
+      height: 44px;
+      transform: translate(-50%, -50%);
+      border: 2px solid white;
+      border-radius: 50%;
+      background: rgb(0 0 0 / 72%);
+      box-shadow: 0 0 0 1px rgb(0 0 0 / 55%);
+      pointer-events: none;
+    }
+    .comparison-handle::before,
+    .comparison-handle::after {
+      content: "";
+      position: absolute;
+      top: 50%;
+      width: 0;
+      height: 0;
+      border-top: 6px solid transparent;
+      border-bottom: 6px solid transparent;
+      transform: translateY(-50%);
+    }
+    .comparison-handle::before { left: 8px; border-right: 7px solid white; }
+    .comparison-handle::after { right: 8px; border-left: 7px solid white; }
+    .comparison-slider .comparison-range {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      opacity: 0;
+      cursor: ew-resize;
+      touch-action: pan-y;
+    }
+    .comparison-range:focus-visible ~ .comparison-handle {
+      outline: 4px solid var(--focus-color);
+      outline-offset: 4px;
+    }
+    .comparison-instructions { margin: 0.5rem 0 0; font-size: 0.85rem; }
   </style>
 </head>
 <body>
@@ -90,11 +192,12 @@
     <p class="hint">The last 20 uploads are held temporarily in memory and cleared when the server restarts. Previews are 8-bit JPEGs without source metadata. Transparent and high-bit-depth images are rejected rather than silently losing data.</p>
 
     <form id="upload-form">
-      <fieldset>
+      <fieldset class="upload-dropzone" id="upload-dropzone">
         <label for="photo-input">Photo
           <input type="file" id="photo-input" name="photo" accept="image/*" required aria-describedby="upload-hint error-message">
         </label>
         <button type="submit" id="upload-button">Upload photo</button>
+        <p class="drop-hint" id="drop-hint">or drag and drop one photo here</p>
       </fieldset>
     </form>
 
@@ -129,7 +232,24 @@
       <p class="result-actions">
         <a class="download-link" id="download-link" href="#" download hidden>Download enhanced JPEG</a>
       </p>
-      <div class="compare" id="compare">
+      <div class="comparison-controls" id="comparison-controls" hidden>
+        <p id="comparison-view-label">Comparison view:</p>
+        <button type="button" id="slider-view-button" aria-pressed="true" aria-describedby="comparison-view-label">Slider</button>
+        <button type="button" id="side-by-side-button" aria-pressed="false" aria-describedby="comparison-view-label">Side by side</button>
+      </div>
+      <div class="comparison-slider" id="comparison-slider" hidden>
+        <img id="comparison-before-img" alt="Original photo">
+        <div class="comparison-after">
+          <img id="comparison-after-img" alt="Enhanced photo">
+          <span class="comparison-label comparison-label-after" aria-hidden="true">After</span>
+        </div>
+        <span class="comparison-label comparison-label-before" aria-hidden="true">Before</span>
+        <span class="comparison-divider" aria-hidden="true"></span>
+        <input class="comparison-range" id="comparison-range" type="range" min="0" max="100" value="50" aria-label="Before and after dividing line" aria-describedby="comparison-instructions">
+        <span class="comparison-handle" aria-hidden="true"></span>
+      </div>
+      <p class="comparison-instructions" id="comparison-instructions" hidden>Drag across the image or use the arrow keys to reveal more or less of the enhanced photo.</p>
+      <div class="compare" id="side-by-side-view">
         <figure>
           <img id="before-img" alt="Original photo">
           <figcaption>Before</figcaption>
@@ -142,12 +262,13 @@
     </section>
   </main>
 
-  <script>
+  <script type="module">
     const PRESET_DESCRIPTIONS = {
       {% for preset in presets %}"{{ preset.id }}": {{ preset.description|tojson }},{% endfor %}
     };
 
     const uploadForm = document.getElementById("upload-form");
+    const uploadDropzone = document.getElementById("upload-dropzone");
     const photoInput = document.getElementById("photo-input");
     const uploadButton = document.getElementById("upload-button");
     const controls = document.getElementById("controls");
@@ -163,6 +284,15 @@
     const afterImg = document.getElementById("after-img");
     const afterCaption = document.getElementById("after-caption");
     const downloadLink = document.getElementById("download-link");
+    const comparisonControls = document.getElementById("comparison-controls");
+    const sliderViewButton = document.getElementById("slider-view-button");
+    const sideBySideButton = document.getElementById("side-by-side-button");
+    const comparisonSlider = document.getElementById("comparison-slider");
+    const comparisonRange = document.getElementById("comparison-range");
+    const comparisonInstructions = document.getElementById("comparison-instructions");
+    const comparisonBeforeImg = document.getElementById("comparison-before-img");
+    const comparisonAfterImg = document.getElementById("comparison-after-img");
+    const sideBySideView = document.getElementById("side-by-side-view");
     const detailDimensions = document.getElementById("detail-dimensions");
     const detailSourceFormat = document.getElementById("detail-source-format");
     const detailOutputFormat = document.getElementById("detail-output-format");
@@ -207,6 +337,24 @@
       downloadLink.hidden = false;
     }
 
+    function updateComparisonPosition() {
+      const position = Number(comparisonRange.value);
+      comparisonSlider.style.setProperty("--comparison-position", `${position}%`);
+      comparisonRange.setAttribute(
+        "aria-valuetext",
+        `${position}% original photo and ${100 - position}% enhanced photo visible`,
+      );
+    }
+
+    function setComparisonView(view) {
+      const showSlider = view === "slider";
+      comparisonSlider.hidden = !showSlider;
+      comparisonInstructions.hidden = !showSlider;
+      sideBySideView.hidden = showSlider;
+      sliderViewButton.setAttribute("aria-pressed", String(showSlider));
+      sideBySideButton.setAttribute("aria-pressed", String(!showSlider));
+    }
+
     async function uploadPhoto(file) {
       if (uploadInProgress) return;
       uploadInProgress = true;
@@ -229,12 +377,16 @@
         sessionId = data.session_id;
         beforeImg.src = data.before;
         afterImg.src = data.after;
+        comparisonBeforeImg.src = data.before;
+        comparisonAfterImg.src = data.after;
         afterCaption.textContent = "After";
         results.hidden = false;
         controls.disabled = false;
         presetSelect.value = "";
         intensitySlider.value = 100;
         intensityValue.textContent = "100%";
+        comparisonRange.value = 50;
+        updateComparisonPosition();
         updatePresetDescription();
         updateResult(data);
         setStatus("Done. Try a filter below.");
@@ -271,6 +423,7 @@
           throw new Error(data.error || "Could not apply filter.");
         }
         afterImg.src = data.after;
+        comparisonAfterImg.src = data.after;
         afterCaption.textContent = preset ? `After — ${presetSelect.options[presetSelect.selectedIndex].text}` : "After";
         updateResult(data);
         setStatus("");
@@ -293,6 +446,45 @@
       }
       uploadPhoto(file);
     });
+
+    let dragDepth = 0;
+    uploadDropzone.addEventListener("dragenter", (event) => {
+      if (!event.dataTransfer.types.includes("Files")) return;
+      event.preventDefault();
+      dragDepth += 1;
+      uploadDropzone.classList.add("is-dragging");
+    });
+
+    uploadDropzone.addEventListener("dragover", (event) => {
+      if (!event.dataTransfer.types.includes("Files")) return;
+      event.preventDefault();
+      event.dataTransfer.dropEffect = "copy";
+    });
+
+    uploadDropzone.addEventListener("dragleave", () => {
+      dragDepth = Math.max(0, dragDepth - 1);
+      if (dragDepth === 0) uploadDropzone.classList.remove("is-dragging");
+    });
+
+    uploadDropzone.addEventListener("drop", (event) => {
+      if (!event.dataTransfer.types.includes("Files")) return;
+      event.preventDefault();
+      dragDepth = 0;
+      uploadDropzone.classList.remove("is-dragging");
+      const file = event.dataTransfer.files[0];
+      if (!file) {
+        showError("Drop a supported image file.", true);
+        return;
+      }
+      uploadPhoto(file);
+    });
+
+    comparisonRange.addEventListener("input", updateComparisonPosition);
+    sliderViewButton.addEventListener("click", () => setComparisonView("slider"));
+    sideBySideButton.addEventListener("click", () => setComparisonView("side-by-side"));
+    comparisonControls.hidden = false;
+    setComparisonView("slider");
+    updateComparisonPosition();
 
     presetSelect.addEventListener("change", () => {
       updatePresetDescription();
