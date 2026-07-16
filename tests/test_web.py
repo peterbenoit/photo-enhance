@@ -29,6 +29,20 @@ def test_index_lists_all_presets():
         assert name in text
 
 
+def test_index_has_accessible_landmarks_feedback_and_result_controls():
+    client = app.test_client()
+    text = client.get("/").get_data(as_text=True)
+
+    assert 'class="skip-link" href="#main"' in text
+    assert '<main id="main">' in text
+    assert 'for="photo-input"' in text
+    assert 'aria-describedby="upload-hint error-message"' in text
+    assert 'id="error-message" role="alert" tabindex="-1"' in text
+    assert 'id="status-message" role="status"' in text
+    assert 'id="results-heading" tabindex="-1"' in text
+    assert 'id="download-link"' in text
+
+
 def test_upload_without_file_returns_400():
     client = app.test_client()
     resp = client.post("/upload", data={})
@@ -89,6 +103,21 @@ def test_upload_returns_session_id_and_images():
     assert body["session_id"]
     assert body["before"].startswith("data:image/jpeg;base64,")
     assert body["after"].startswith("data:image/jpeg;base64,")
+    assert body["download_name"] == "photo_enhanced.jpg"
+    assert body["details"]["height"] == 16
+    assert body["details"]["width"] == 16
+    assert body["details"]["source_format"] == "JPEG"
+    assert body["details"]["output_format"] == "JPEG preview"
+    assert body["details"]["processing_ms"] >= 0
+
+
+def test_upload_sanitizes_download_filename():
+    client = app.test_client()
+    data = {"photo": (io.BytesIO(_jpeg_bytes()), "../../family photo.jpg")}
+    resp = client.post("/upload", data=data, content_type="multipart/form-data")
+
+    assert resp.status_code == 200
+    assert resp.get_json()["download_name"] == "family_photo_enhanced.jpg"
 
 
 def test_upload_enhancement_failure_returns_friendly_error(monkeypatch):
@@ -142,7 +171,12 @@ def test_apply_with_valid_session_and_preset_returns_image():
 
     resp = client.post("/apply", json={"session_id": session_id, "preset": "warm_film", "intensity": 50})
     assert resp.status_code == 200
-    assert resp.get_json()["after"].startswith("data:image/jpeg;base64,")
+    body = resp.get_json()
+    assert body["after"].startswith("data:image/jpeg;base64,")
+    assert body["download_name"] == "photo_enhanced_warm_film.jpg"
+    assert body["details"]["source_format"] == "JPEG"
+    assert body["details"]["width"] == 16
+    assert body["details"]["height"] == 16
 
 
 def test_apply_with_unknown_preset_returns_400():

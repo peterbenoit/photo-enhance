@@ -9,7 +9,9 @@ only the preset step (via fetch) instead of re-uploading the file.
 
 import base64
 import os
+from pathlib import Path
 import threading
+from time import perf_counter
 import uuid
 from collections import OrderedDict
 
@@ -18,6 +20,7 @@ import numpy as np
 from flask import Flask, jsonify, render_template, request
 from PIL import Image, UnidentifiedImageError
 from werkzeug.exceptions import RequestEntityTooLarge
+from werkzeug.utils import secure_filename
 
 from photo_enhance.auto_levels import auto_enhance
 from photo_enhance.imageio_utils import UnsupportedImageError, load_bgr_bytes
@@ -35,10 +38,21 @@ _sessions: "OrderedDict[str, dict]" = OrderedDict()
 _sessions_lock = threading.Lock()
 
 
-def _store_session(original: np.ndarray, enhanced: np.ndarray) -> str:
+def _store_session(
+    original: np.ndarray,
+    enhanced: np.ndarray,
+    *,
+    download_stem: str,
+    source_format: str,
+) -> str:
     session_id = uuid.uuid4().hex
     with _sessions_lock:
-        _sessions[session_id] = {"original": original, "enhanced": enhanced}
+        _sessions[session_id] = {
+            "original": original,
+            "enhanced": enhanced,
+            "download_stem": download_stem,
+            "source_format": source_format,
+        }
         _sessions.move_to_end(session_id)
         while len(_sessions) > MAX_SESSIONS:
             _sessions.popitem(last=False)
@@ -73,6 +87,7 @@ def index():
 
 @app.route("/upload", methods=["POST"])
 def upload():
+    started_at = perf_counter()
     file = request.files.get("photo")
     if file is None or file.filename == "":
         return jsonify(error="Choose a photo first."), 400
@@ -83,7 +98,7 @@ def upload():
         return jsonify(error="Could not read the uploaded photo."), 400
 
     try:
-        img, _metadata = load_bgr_bytes(
+        img, metadata = load_bgr_bytes(
             encoded,
             max_pixels=MAX_DECODED_PIXELS,
             max_dimension=MAX_IMAGE_DIMENSION,
@@ -97,7 +112,15 @@ def upload():
         enhanced = auto_enhance(img)
     except (ValueError, cv2.error):
         return jsonify(error="Could not enhance that image."), 422
-    session_id = _store_session(img, enhanced)
+    safe_name = secure_filename(file.filename)
+    download_stem = Path(safe_name).stem or "photo"
+    source_format = metadata.source_format or "Unknown"
+    session_id = _store_session(
+        img,
+        enhanced,
+        download_stem=download_stem,
+        source_format=source_format,
+    )
 
     try:
         before_uri = _bgr_to_data_uri(img)
@@ -105,11 +128,25 @@ def upload():
     except (ValueError, cv2.error):
         return jsonify(error="Could not encode the enhanced preview."), 500
 
-    return jsonify(session_id=session_id, before=before_uri, after=after_uri)
+    height, width = img.shape[:2]
+    return jsonify(
+        session_id=session_id,
+        before=before_uri,
+        after=after_uri,
+        download_name=f"{download_stem}_enhanced.jpg",
+        details={
+            "width": width,
+            "height": height,
+            "source_format": source_format,
+            "output_format": "JPEG preview",
+            "processing_ms": round((perf_counter() - started_at) * 1000),
+        },
+    )
 
 
 @app.route("/apply", methods=["POST"])
 def apply():
+    started_at = perf_counter()
     data = request.get_json(silent=True) or {}
     session_id = data.get("session_id")
     preset_name = data.get("preset") or None
@@ -141,7 +178,19 @@ def apply():
         after_uri = _bgr_to_data_uri(result)
     except (ValueError, cv2.error):
         return jsonify(error="Could not encode the filtered preview."), 500
-    return jsonify(after=after_uri)
+    preset_suffix = f"_{preset_name}" if preset_name else ""
+    height, width = result.shape[:2]
+    return jsonify(
+        after=after_uri,
+        download_name=f"{session['download_stem']}_enhanced{preset_suffix}.jpg",
+        details={
+            "width": width,
+            "height": height,
+            "source_format": session["source_format"],
+            "output_format": "JPEG preview",
+            "processing_ms": round((perf_counter() - started_at) * 1000),
+        },
+    )
 
 
 def main():

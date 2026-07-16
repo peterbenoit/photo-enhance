@@ -27,6 +27,8 @@ class ImageMetadata:
     exif: bytes | None = None
     icc_profile: bytes | None = None
     dpi: tuple[float, float] | None = None
+    source_format: str | None = None
+    source_mode: str | None = None
 
 
 def _has_transparency(image: Image.Image) -> bool:
@@ -57,6 +59,8 @@ def _decode_bgr(
     max_dimension: int | None = None,
 ) -> tuple[np.ndarray, ImageMetadata]:
     with Image.open(source) as image:
+        source_format = image.format
+        source_mode = image.mode
         width, height = image.size
         if max_dimension is not None and (width > max_dimension or height > max_dimension):
             raise UnsupportedImageError(
@@ -84,7 +88,13 @@ def _decode_bgr(
         rgb = oriented.convert("RGB")
         array = np.asarray(rgb, dtype=np.uint8)
 
-    metadata = ImageMetadata(exif=exif_bytes, icc_profile=icc_profile, dpi=dpi)
+    metadata = ImageMetadata(
+        exif=exif_bytes,
+        icc_profile=icc_profile,
+        dpi=dpi,
+        source_format=source_format,
+        source_mode=source_mode,
+    )
     return cv2.cvtColor(array, cv2.COLOR_RGB2BGR), metadata
 
 

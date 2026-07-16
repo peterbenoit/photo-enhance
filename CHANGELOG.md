@@ -2,6 +2,24 @@
 
 All notable changes to this project are logged here, newest first.
 
+## 2026-07-16 — Accessible results and downloads
+
+- Added a skip link, main landmark, enhancement-controls legend, named results
+  section, and semantic result details.
+- Upload errors are associated with the file input and receive focus after a
+  failed submission. Processing updates use a polite atomic status region;
+  successful uploads move focus to the new results heading.
+- Added light/dark error and focus tokens, a persistent visible focus indicator,
+  and 44-pixel minimum interactive target sizing.
+- The result now reports dimensions, source format, JPEG preview format, active
+  filter, and processing time returned by Flask rather than inferred in the UI.
+- Added a download link for the currently displayed result with a sanitized,
+  descriptive filename that follows filter changes.
+- Guarded duplicate uploads, exposed busy state to assistive technology, and
+  invalidated stale filter responses when a new photo is uploaded.
+- Added HTML structure, response metadata, filename sanitization, and filtered
+  download-name regressions. The suite now has 72 tests.
+
 ## 2026-07-16 — Explicit image fidelity and metadata controls
 
 - CLI and web decoding now share one Pillow-based path. EXIF orientation is

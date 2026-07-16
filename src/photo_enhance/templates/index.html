@@ -5,7 +5,19 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Photo Auto-Enhance</title>
   <style>
-    :root { color-scheme: light dark; }
+    :root {
+      color-scheme: light dark;
+      --error-color: #b42318;
+      --focus-color: #005fcc;
+      --border-color: #767676;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --error-color: #ffb4ab;
+        --focus-color: #8ec8ff;
+        --border-color: #a9a9a9;
+      }
+    }
     body {
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       max-width: 960px;
@@ -14,8 +26,21 @@
       line-height: 1.4;
     }
     h1 { font-size: 1.4rem; }
+    h2 { font-size: 1.15rem; }
+    .skip-link {
+      position: absolute;
+      left: 1rem;
+      top: 0;
+      transform: translateY(-150%);
+      padding: 0.6rem 0.8rem;
+      background: Canvas;
+      color: CanvasText;
+      border: 2px solid var(--focus-color);
+      z-index: 10;
+    }
+    .skip-link:focus { transform: translateY(0); }
     fieldset {
-      border: 1px solid #8883;
+      border: 1px solid var(--border-color);
       border-radius: 8px;
       padding: 1rem;
       margin: 0 0 1.5rem;
@@ -26,64 +51,96 @@
     }
     fieldset[disabled] { opacity: 0.5; }
     label { display: flex; flex-direction: column; gap: 0.25rem; font-size: 0.9rem; }
-    select, input[type="file"], button {
+    select, input[type="file"], button, .download-link {
       font-size: 1rem;
       padding: 0.4rem 0.6rem;
+      min-height: 44px;
+      box-sizing: border-box;
     }
     input[type="range"] { width: 180px; }
     button { cursor: pointer; }
-    .error { color: #b00020; }
+    :focus-visible { outline: 3px solid var(--focus-color); outline-offset: 3px; }
+    .error { color: var(--error-color); font-weight: 600; }
     .status { opacity: 0.75; font-size: 0.9rem; min-height: 1.2em; }
     .compare { display: flex; gap: 1rem; flex-wrap: wrap; }
     .compare figure { flex: 1 1 300px; margin: 0; position: relative; }
-    .compare img { width: 100%; height: auto; border-radius: 6px; border: 1px solid #8883; }
+    .compare img { width: 100%; height: auto; border-radius: 6px; border: 1px solid var(--border-color); }
     figcaption { text-align: center; font-size: 0.9rem; opacity: 0.8; margin-top: 0.25rem; }
     .hint { font-size: 0.85rem; opacity: 0.7; }
     #preset-description { font-size: 0.8rem; opacity: 0.7; flex-basis: 100%; margin: 0; }
+    .result-actions { margin: 1rem 0; }
+    .download-link {
+      display: inline-flex;
+      align-items: center;
+      text-decoration: none;
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+    }
+    .result-details { display: flex; flex-wrap: wrap; gap: 0.5rem 1.5rem; margin: 0.75rem 0; }
+    .result-details div { display: flex; gap: 0.35rem; }
+    .result-details dt { font-weight: 600; }
+    .result-details dd { margin: 0; }
   </style>
 </head>
 <body>
-  <h1>Photo Auto-Enhance</h1>
-  <p class="hint">Runs locally. Nothing leaves this machine. Upload once, then change the preset or its intensity below without re-uploading.</p>
-  <p class="hint">Previews are temporary 8-bit JPEGs without source metadata. Transparent and high-bit-depth images are rejected rather than silently losing data.</p>
+  <a class="skip-link" href="#main">Skip to main content</a>
+  <main id="main">
+    <h1>Photo Auto-Enhance</h1>
+    <p class="hint" id="upload-hint">Runs on localhost with debug mode off by default. Nothing leaves this machine. Upload once, then change the preset or its intensity without re-uploading.</p>
+    <p class="hint">The last 20 uploads are held temporarily in memory and cleared when the server restarts. Previews are 8-bit JPEGs without source metadata. Transparent and high-bit-depth images are rejected rather than silently losing data.</p>
 
-  <form id="upload-form">
-    <fieldset>
-      <label for="photo-input">Photo
-        <input type="file" id="photo-input" name="photo" accept="image/*" required>
+    <form id="upload-form">
+      <fieldset>
+        <label for="photo-input">Photo
+          <input type="file" id="photo-input" name="photo" accept="image/*" required aria-describedby="upload-hint error-message">
+        </label>
+        <button type="submit" id="upload-button">Upload photo</button>
+      </fieldset>
+    </form>
+
+    <fieldset id="controls" disabled>
+      <legend>Enhancement controls</legend>
+      <label for="preset-select">Filter
+        <select id="preset-select">
+          <option value="">No filter (auto-enhance only)</option>
+          {% for preset in presets %}
+            <option value="{{ preset.id }}">{{ preset.name }}</option>
+          {% endfor %}
+        </select>
       </label>
-      <button type="submit" id="upload-button">Upload photo</button>
+      <label for="intensity-slider">Intensity <span id="intensity-value">100%</span>
+        <input type="range" id="intensity-slider" min="0" max="100" value="100" disabled>
+      </label>
+      <p id="preset-description"></p>
     </fieldset>
-  </form>
 
-  <fieldset id="controls" disabled>
-    <label for="preset-select">Filter
-      <select id="preset-select">
-        <option value="">No filter (auto-enhance only)</option>
-        {% for preset in presets %}
-          <option value="{{ preset.id }}">{{ preset.name }}</option>
-        {% endfor %}
-      </select>
-    </label>
-    <label for="intensity-slider">Intensity <span id="intensity-value">100%</span>
-      <input type="range" id="intensity-slider" min="0" max="100" value="100" disabled>
-    </label>
-    <p id="preset-description"></p>
-  </fieldset>
+    <p class="error" id="error-message" role="alert" tabindex="-1"></p>
+    <p class="status" id="status-message" role="status" aria-live="polite" aria-atomic="true"></p>
 
-  <p class="error" id="error-message" role="alert"></p>
-  <p class="status" id="status-message" aria-live="polite"></p>
-
-  <div class="compare" id="compare" hidden>
-    <figure>
-      <img id="before-img" alt="Original photo">
-      <figcaption>Before</figcaption>
-    </figure>
-    <figure>
-      <img id="after-img" alt="Enhanced photo">
-      <figcaption id="after-caption">After</figcaption>
-    </figure>
-  </div>
+    <section id="results" aria-labelledby="results-heading" hidden>
+      <h2 id="results-heading" tabindex="-1">Enhancement result</h2>
+      <dl class="result-details" aria-label="Result details">
+        <div><dt>Dimensions:</dt><dd id="detail-dimensions"></dd></div>
+        <div><dt>Source:</dt><dd id="detail-source-format"></dd></div>
+        <div><dt>Output:</dt><dd id="detail-output-format"></dd></div>
+        <div><dt>Filter:</dt><dd id="detail-filter"></dd></div>
+        <div><dt>Processing:</dt><dd id="detail-processing-time"></dd></div>
+      </dl>
+      <p class="result-actions">
+        <a class="download-link" id="download-link" href="#" download hidden>Download enhanced JPEG</a>
+      </p>
+      <div class="compare" id="compare">
+        <figure>
+          <img id="before-img" alt="Original photo">
+          <figcaption>Before</figcaption>
+        </figure>
+        <figure>
+          <img id="after-img" alt="Enhanced photo">
+          <figcaption id="after-caption">After</figcaption>
+        </figure>
+      </div>
+    </section>
+  </main>
 
   <script>
     const PRESET_DESCRIPTIONS = {
@@ -100,16 +157,26 @@
     const presetDescription = document.getElementById("preset-description");
     const errorMessage = document.getElementById("error-message");
     const statusMessage = document.getElementById("status-message");
-    const compare = document.getElementById("compare");
+    const results = document.getElementById("results");
+    const resultsHeading = document.getElementById("results-heading");
     const beforeImg = document.getElementById("before-img");
     const afterImg = document.getElementById("after-img");
     const afterCaption = document.getElementById("after-caption");
+    const downloadLink = document.getElementById("download-link");
+    const detailDimensions = document.getElementById("detail-dimensions");
+    const detailSourceFormat = document.getElementById("detail-source-format");
+    const detailOutputFormat = document.getElementById("detail-output-format");
+    const detailFilter = document.getElementById("detail-filter");
+    const detailProcessingTime = document.getElementById("detail-processing-time");
 
     let sessionId = null;
     let applyRequestToken = 0;
+    let uploadInProgress = false;
 
-    function showError(message) {
+    function showError(message, moveFocus = false) {
       errorMessage.textContent = message || "";
+      photoInput.setAttribute("aria-invalid", message ? "true" : "false");
+      if (message && moveFocus) errorMessage.focus();
     }
 
     function setStatus(message) {
@@ -122,10 +189,33 @@
       intensitySlider.disabled = presetSelect.value === "";
     }
 
+    function selectedFilterName() {
+      return presetSelect.value
+        ? presetSelect.options[presetSelect.selectedIndex].text
+        : "Auto-enhance only";
+    }
+
+    function updateResult(data) {
+      const details = data.details;
+      detailDimensions.textContent = `${details.width} × ${details.height} px`;
+      detailSourceFormat.textContent = details.source_format;
+      detailOutputFormat.textContent = details.output_format;
+      detailFilter.textContent = selectedFilterName();
+      detailProcessingTime.textContent = `${details.processing_ms} ms`;
+      downloadLink.href = data.after;
+      downloadLink.download = data.download_name;
+      downloadLink.hidden = false;
+    }
+
     async function uploadPhoto(file) {
+      if (uploadInProgress) return;
+      uploadInProgress = true;
+      applyRequestToken += 1;
+      controls.removeAttribute("aria-busy");
       showError("");
       setStatus("Uploading…");
       uploadButton.disabled = true;
+      uploadForm.setAttribute("aria-busy", "true");
 
       const formData = new FormData();
       formData.append("photo", file);
@@ -140,18 +230,22 @@
         beforeImg.src = data.before;
         afterImg.src = data.after;
         afterCaption.textContent = "After";
-        compare.hidden = false;
+        results.hidden = false;
         controls.disabled = false;
         presetSelect.value = "";
         intensitySlider.value = 100;
         intensityValue.textContent = "100%";
         updatePresetDescription();
+        updateResult(data);
         setStatus("Done. Try a filter below.");
+        resultsHeading.focus();
       } catch (err) {
-        showError(err.message);
+        showError(err.message, true);
         setStatus("");
       } finally {
+        uploadInProgress = false;
         uploadButton.disabled = false;
+        uploadForm.removeAttribute("aria-busy");
       }
     }
 
@@ -163,6 +257,7 @@
       const preset = presetSelect.value;
       const intensity = Number(intensitySlider.value);
       setStatus("Applying…");
+      controls.setAttribute("aria-busy", "true");
 
       try {
         const response = await fetch("/apply", {
@@ -177,12 +272,15 @@
         }
         afterImg.src = data.after;
         afterCaption.textContent = preset ? `After — ${presetSelect.options[presetSelect.selectedIndex].text}` : "After";
+        updateResult(data);
         setStatus("");
       } catch (err) {
         if (token === applyRequestToken) {
           showError(err.message);
           setStatus("");
         }
+      } finally {
+        if (token === applyRequestToken) controls.removeAttribute("aria-busy");
       }
     }
 
@@ -190,7 +288,7 @@
       event.preventDefault();
       const file = photoInput.files[0];
       if (!file) {
-        showError("Choose a photo first.");
+        showError("Choose a photo first.", true);
         return;
       }
       uploadPhoto(file);

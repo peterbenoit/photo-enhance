@@ -74,21 +74,21 @@ P2 improves product quality; P3 contains larger, optional capabilities.
 
 ## P1 — Improve the web experience and accessibility
 
-- [ ] Add visible `<label>` elements for the file input and preset selector.
-- [ ] Wrap primary content in `<main>` and give the result area an appropriate heading.
-- [ ] Give errors `role="alert"` (or an assertive live region), move focus to them after submission, and associate upload errors with the file control.
-- [ ] Add a polite status region for processing and completion so assistive technology announces state changes.
-- [ ] Replace the hard-coded error color with light/dark theme tokens that meet WCAG AA contrast in both color schemes.
-- [ ] Verify visible keyboard focus and 44-by-44-pixel target sizing for every interactive control.
-- [ ] Preserve the selected preset when the form is re-rendered after success or error.
-- [ ] Add a download button with a meaningful filename and the chosen format/quality settings.
+- [x] Add visible `<label>` elements for the file input and preset selector.
+- [x] Wrap primary content in `<main>` and give the result area an appropriate heading.
+- [x] Give errors `role="alert"` (or an assertive live region), move focus to them after submission, and associate upload errors with the file control.
+- [x] Add a polite status region for processing and completion so assistive technology announces state changes.
+- [x] Replace the hard-coded error color with light/dark theme tokens that meet WCAG AA contrast in both color schemes.
+- [x] Verify visible keyboard focus and 44-by-44-pixel target sizing for every interactive control.
+- [x] Preserve the selected preset when the form is re-rendered after success or error.
+- [x] Add a download button with a meaningful filename and the chosen format/quality settings.
 - [ ] Add a draggable before/after comparison slider while retaining a keyboard-accessible side-by-side mode.
 - [ ] Add drag-and-drop as a progressive enhancement without removing the native file input.
-- [ ] Show image dimensions, output format, preset, and processing time with the result.
+- [x] Show image dimensions, output format, preset, and processing time with the result.
 - [ ] Avoid embedding two large base64 images directly in the HTML; use short-lived in-memory result URLs or browser-side object URLs with explicit cleanup.
-- [ ] Prevent accidental duplicate submissions and show a processing state for large photos.
+- [x] Prevent accidental duplicate submissions and show a processing state for large photos.
 - [ ] Preserve results across refresh using a redirect-after-post or a clearly documented ephemeral-result model.
-- [ ] Add a short privacy note explaining localhost scope, metadata handling, temporary memory use, and that debug mode must remain disabled.
+- [x] Add a short privacy note explaining localhost scope, metadata handling, temporary memory use, and that debug mode must remain disabled.
 
 ## P1 — Strengthen CLI usability
 

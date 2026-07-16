@@ -45,7 +45,9 @@ sessions in memory; restarting the server clears them.
 
 Web previews are converted to 8-bit JPEG and do not contain source metadata.
 Transparent images and images above 8 bits per channel are rejected with an
-explanation instead of being silently flattened or down-converted.
+explanation instead of being silently flattened or down-converted. After
+processing, the page shows dimensions, source/output format, active filter, and
+processing time, and provides a download link for the currently displayed JPEG.
 
 By default the Flask dev server runs with debug off. For local debugging,
 set `PHOTO_ENHANCE_DEBUG=1` before starting it.
