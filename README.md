@@ -43,6 +43,10 @@ dropdown or dragging the intensity slider re-applies the filter against the
 already-uploaded image (no re-upload). The server keeps the last 20 uploaded
 sessions in memory; restarting the server clears them.
 
+Web previews are converted to 8-bit JPEG and do not contain source metadata.
+Transparent images and images above 8 bits per channel are rejected with an
+explanation instead of being silently flattened or down-converted.
+
 By default the Flask dev server runs with debug off. For local debugging,
 set `PHOTO_ENHANCE_DEBUG=1` before starting it.
 
@@ -55,6 +59,9 @@ uv run photo-enhance path/to/photo.jpg
 # With a creative preset
 uv run photo-enhance path/to/photo.jpg --preset warm_film
 
+# Privacy-sensitive JPEG export: remove EXIF/GPS, ICC, and DPI; choose quality
+uv run photo-enhance path/to/photo.jpg --strip-metadata --quality 90
+
 # Batch process a folder, writing to an output folder
 uv run photo-enhance path/to/folder --batch -o path/to/output_folder
 ```
@@ -62,11 +69,28 @@ uv run photo-enhance path/to/folder --batch -o path/to/output_folder
 Available presets: `warm_film`, `cool_moody`, `high_contrast_bw`, `faded_vintage`
 (defined as JSON tone curves in `src/photo_enhance/preset_data/`).
 
-EXIF metadata is preserved where the source format supports it (JPEG/TIFF).
+The CLI applies EXIF orientation to the pixels and removes the orientation tag
+so viewers cannot rotate the result twice. By default it preserves EXIF
+(including GPS), ICC profiles, and DPI where the output format supports them.
+Use `--strip-metadata` to remove all three. XMP, comments, thumbnails, and other
+container-specific metadata are not guaranteed to survive.
+
+JPEG exports default to quality 92, WebP to quality 90, PNG uses optimized
+lossless compression, and TIFF uses LZW compression. `--quality 1-100` is
+available for JPEG and WebP outputs.
 
 By default, the CLI refuses to let an output path overwrite its input (single
 file, or a batch output folder that resolves to the input folder) — pass
 `--overwrite` to allow it explicitly.
+
+## Supported image contract
+
+The enhancement pipeline accepts and returns non-empty NumPy arrays with shape
+`(height, width, 3)`, BGR channel order, and `uint8` pixels in the 0–255 range.
+JPEG, PNG, TIFF, BMP, and WebP files are supported. Grayscale and CMYK sources
+are converted to that contract. Alpha/transparency and images above 8 bits per
+channel are currently rejected because accepting them would silently discard
+data. RAW files remain out of scope.
 
 ## Running tests
 

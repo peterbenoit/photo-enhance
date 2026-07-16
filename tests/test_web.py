@@ -2,6 +2,7 @@ import io
 
 import cv2
 import numpy as np
+from PIL import Image
 
 from photo_enhance.web import app
 
@@ -11,6 +12,12 @@ def _jpeg_bytes() -> bytes:
     ok, buf = cv2.imencode(".jpg", img)
     assert ok
     return buf.tobytes()
+
+
+def _transparent_png_bytes() -> bytes:
+    output = io.BytesIO()
+    Image.new("RGBA", (16, 16), (100, 120, 140, 100)).save(output, format="PNG")
+    return output.getvalue()
 
 
 def test_index_lists_all_presets():
@@ -59,6 +66,18 @@ def test_upload_rejects_excessive_decoded_pixels(monkeypatch):
 
     assert resp.status_code == 400
     assert "decoded pixels" in resp.get_json()["error"].lower()
+
+
+def test_upload_rejects_transparency_instead_of_flattening_it():
+    client = app.test_client()
+    resp = client.post(
+        "/upload",
+        data={"photo": (io.BytesIO(_transparent_png_bytes()), "photo.png")},
+        content_type="multipart/form-data",
+    )
+
+    assert resp.status_code == 400
+    assert "alpha channel" in resp.get_json()["error"].lower()
 
 
 def test_upload_returns_session_id_and_images():

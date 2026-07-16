@@ -1,6 +1,7 @@
 import cv2
 import numpy as np
 from click.testing import CliRunner
+from PIL import Image
 
 from photo_enhance.cli import main
 
@@ -104,10 +105,10 @@ def test_batch_failure_returns_nonzero_and_continues(tmp_path, monkeypatch):
 
     real_process_one = cli._process_one
 
-    def fail_one(input_path, output_path, preset):
+    def fail_one(input_path, output_path, preset, **kwargs):
         if input_path.name == "bad.jpg":
             raise OSError("simulated write failure")
-        real_process_one(input_path, output_path, preset)
+        real_process_one(input_path, output_path, preset, **kwargs)
 
     monkeypatch.setattr(cli, "_process_one", fail_one)
 
@@ -127,3 +128,39 @@ def test_unknown_preset_is_rejected_by_click(tmp_path):
 
     assert result.exit_code != 0
     assert "invalid value for '--preset'" in result.output.lower()
+
+
+def test_strip_metadata_removes_exif(tmp_path):
+    photo = tmp_path / "photo.jpg"
+    output = tmp_path / "enhanced.jpg"
+    image = Image.new("RGB", (16, 16), (120, 120, 120))
+    exif = Image.Exif()
+    exif[315] = "Test Artist"
+    image.save(photo, exif=exif)
+
+    result = CliRunner().invoke(main, [str(photo), "-o", str(output), "--strip-metadata"])
+
+    assert result.exit_code == 0
+    with Image.open(output) as saved:
+        assert not saved.getexif()
+
+
+def test_quality_is_validated_by_click(tmp_path):
+    photo = tmp_path / "photo.jpg"
+    _write_test_image(photo)
+
+    result = CliRunner().invoke(main, [str(photo), "--quality", "101"])
+
+    assert result.exit_code != 0
+    assert "101 is not in the range 1<=x<=100" in result.output
+
+
+def test_unsupported_transparency_returns_friendly_cli_error(tmp_path):
+    photo = tmp_path / "transparent.png"
+    Image.new("RGBA", (8, 8), (100, 120, 140, 100)).save(photo)
+
+    result = CliRunner().invoke(main, [str(photo)])
+
+    assert result.exit_code != 0
+    assert "Error: Transparent images are not supported yet" in result.output
+    assert result.exception is not None

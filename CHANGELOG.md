@@ -2,6 +2,25 @@
 
 All notable changes to this project are logged here, newest first.
 
+## 2026-07-16 — Explicit image fidelity and metadata controls
+
+- CLI and web decoding now share one Pillow-based path. EXIF orientation is
+  applied to pixels and removed from retained metadata, preventing incorrect or
+  double rotation in downstream viewers.
+- EXIF (including GPS), ICC profiles, and DPI metadata are preserved by default
+  for compatible CLI output formats. New `--strip-metadata` removes them for
+  privacy-sensitive exports.
+- Transparent and greater-than-8-bit inputs now fail with actionable messages
+  instead of silently losing alpha or bit depth. Grayscale and CMYK inputs are
+  explicitly supported through conversion to the documented 8-bit BGR contract.
+- Added format-aware output settings: JPEG quality 92, WebP quality 90,
+  optimized PNG, and LZW-compressed TIFF. New `--quality 1-100` controls JPEG
+  and WebP exports.
+- Web previews now disclose that results are metadata-free 8-bit JPEGs.
+- Added advertised-format round trips and regressions for orientation, EXIF,
+  ICC, DPI, alpha, grayscale, CMYK, 16-bit grayscale/RGB, metadata stripping,
+  CLI error handling, and quality validation. The suite now has 70 tests.
+
 ## 2026-07-16 — Safer output and truthful failures
 
 - CLI output is now encoded to a same-directory temporary file and atomically

@@ -8,7 +8,6 @@ only the preset step (via fetch) instead of re-uploading the file.
 """
 
 import base64
-import io
 import os
 import threading
 import uuid
@@ -21,6 +20,7 @@ from PIL import Image, UnidentifiedImageError
 from werkzeug.exceptions import RequestEntityTooLarge
 
 from photo_enhance.auto_levels import auto_enhance
+from photo_enhance.imageio_utils import UnsupportedImageError, load_bgr_bytes
 from photo_enhance.presets import apply_preset_blended, list_preset_choices, load_preset
 
 app = Flask(__name__)
@@ -61,21 +61,6 @@ def _bgr_to_data_uri(img_bgr: np.ndarray) -> str:
     return f"data:image/jpeg;base64,{encoded}"
 
 
-def _validate_encoded_image(file_bytes: bytes) -> str | None:
-    """Return a user-facing error when encoded dimensions are unsafe or unreadable."""
-    try:
-        with Image.open(io.BytesIO(file_bytes)) as image:
-            width, height = image.size
-    except (UnidentifiedImageError, OSError):
-        return "Could not read that file as an image."
-
-    if width > MAX_IMAGE_DIMENSION or height > MAX_IMAGE_DIMENSION:
-        return f"Image dimensions cannot exceed {MAX_IMAGE_DIMENSION:,} pixels per side."
-    if width * height > MAX_DECODED_PIXELS:
-        return f"Image cannot exceed {MAX_DECODED_PIXELS:,} decoded pixels."
-    return None
-
-
 @app.errorhandler(RequestEntityTooLarge)
 def upload_too_large(_error):
     return jsonify(error=f"Photo is too large. Maximum upload size is {MAX_UPLOAD_BYTES // (1024 * 1024)} MB."), 413
@@ -97,15 +82,15 @@ def upload():
     except OSError:
         return jsonify(error="Could not read the uploaded photo."), 400
 
-    validation_error = _validate_encoded_image(encoded)
-    if validation_error:
-        return jsonify(error=validation_error), 400
-
     try:
-        img = cv2.imdecode(np.frombuffer(encoded, dtype=np.uint8), cv2.IMREAD_COLOR)
-    except cv2.error:
-        return jsonify(error="Could not decode that image."), 400
-    if img is None:
+        img, _metadata = load_bgr_bytes(
+            encoded,
+            max_pixels=MAX_DECODED_PIXELS,
+            max_dimension=MAX_IMAGE_DIMENSION,
+        )
+    except UnsupportedImageError as exc:
+        return jsonify(error=str(exc)), 400
+    except (UnidentifiedImageError, OSError, Image.DecompressionBombError):
         return jsonify(error="Could not read that file as an image."), 400
 
     try:

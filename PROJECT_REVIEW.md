@@ -31,16 +31,16 @@ P2 improves product quality; P3 contains larger, optional capabilities.
 
 ## P0 — Preserve image fidelity intentionally
 
-- [ ] Decide and document the supported pixel contract: the current pipeline converts every input to 8-bit, three-channel RGB/BGR.
-- [ ] Preserve alpha for PNG and WebP, or reject transparent inputs clearly instead of silently flattening them.
-- [ ] Preserve 16-bit PNG/TIFF data through an appropriate pipeline, or detect and warn before down-converting to 8-bit.
-- [ ] Handle EXIF orientation deliberately with `ImageOps.exif_transpose()` and normalize/remove the orientation tag after rotating pixels.
-- [ ] Preserve ICC profiles so colors do not change unexpectedly in color-managed viewers.
-- [ ] Decide whether to preserve XMP, DPI, comments, and other format metadata; document what is retained and what is dropped.
-- [ ] Add `--strip-metadata` for privacy-sensitive exports, especially to remove embedded GPS data, and document that EXIF is currently preserved by default.
-- [ ] Use format-aware save settings instead of Pillow defaults; expose JPEG/WebP quality and avoid unnecessary recompression where possible.
-- [ ] Keep the web result in the source format when feasible, or clearly disclose that the preview/export is converted to JPEG without source metadata or transparency.
-- [ ] Add regression tests for orientation, EXIF, ICC, alpha, grayscale, CMYK, 16-bit input, and format-specific output behavior.
+- [x] Decide and document the supported pixel contract: the current pipeline converts every input to 8-bit, three-channel RGB/BGR.
+- [x] Preserve alpha for PNG and WebP, or reject transparent inputs clearly instead of silently flattening them.
+- [x] Preserve 16-bit PNG/TIFF data through an appropriate pipeline, or detect and warn before down-converting to 8-bit.
+- [x] Handle EXIF orientation deliberately with `ImageOps.exif_transpose()` and normalize/remove the orientation tag after rotating pixels.
+- [x] Preserve ICC profiles so colors do not change unexpectedly in color-managed viewers.
+- [x] Decide whether to preserve XMP, DPI, comments, and other format metadata; document what is retained and what is dropped.
+- [x] Add `--strip-metadata` for privacy-sensitive exports, especially to remove embedded GPS data, and document that EXIF is currently preserved by default.
+- [x] Use format-aware save settings instead of Pillow defaults; expose JPEG/WebP quality and avoid unnecessary recompression where possible.
+- [x] Keep the web result in the source format when feasible, or clearly disclose that the preview/export is converted to JPEG without source metadata or transparency.
+- [x] Add regression tests for orientation, EXIF, ICC, alpha, grayscale, CMYK, 16-bit input, and format-specific output behavior.
 
 ## P1 — Prove all user-facing paths
 
@@ -142,7 +142,7 @@ P2 improves product quality; P3 contains larger, optional capabilities.
 
 ## Recommended delivery order
 
-- [ ] Milestone 1: complete all P0 items and their regression tests before processing irreplaceable photo libraries.
+- [x] Milestone 1: complete all P0 items and their regression tests before processing irreplaceable photo libraries.
 - [ ] Milestone 2: add CLI/web/image-I/O coverage, CI, a reference-image corpus, and measurable quality guardrails.
 - [ ] Milestone 3: deliver download/export, accessible form feedback, overwrite controls, and configurable enhancement strength.
 - [ ] Milestone 4: improve color/metadata fidelity and formalize presets and pipeline options.

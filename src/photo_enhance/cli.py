@@ -4,13 +4,19 @@ from pathlib import Path
 
 import click
 import cv2
-from PIL import UnidentifiedImageError
+from PIL import Image, UnidentifiedImageError
 
 from photo_enhance.auto_levels import auto_enhance
 from photo_enhance.imageio_utils import is_supported_image, load_bgr, save_bgr
 from photo_enhance.presets import apply_preset, list_presets, load_preset
 
-PROCESSING_ERRORS = (OSError, ValueError, cv2.error, UnidentifiedImageError)
+PROCESSING_ERRORS = (
+    OSError,
+    ValueError,
+    cv2.error,
+    UnidentifiedImageError,
+    Image.DecompressionBombError,
+)
 
 
 def _output_path(input_path: Path, output: Path | None, is_batch: bool) -> Path:
@@ -22,12 +28,19 @@ def _output_path(input_path: Path, output: Path | None, is_batch: bool) -> Path:
     return output
 
 
-def _process_one(input_path: Path, output_path: Path, preset: dict | None) -> None:
-    img, exif = load_bgr(input_path)
+def _process_one(
+    input_path: Path,
+    output_path: Path,
+    preset: dict | None,
+    *,
+    strip_metadata: bool = False,
+    quality: int | None = None,
+) -> None:
+    img, metadata = load_bgr(input_path)
     result = auto_enhance(img)
     if preset is not None:
         result = apply_preset(result, preset)
-    save_bgr(output_path, result, exif=exif)
+    save_bgr(output_path, result, metadata=None if strip_metadata else metadata, quality=quality)
 
 
 @click.command()
@@ -39,7 +52,19 @@ def _process_one(input_path: Path, output_path: Path, preset: dict | None) -> No
 @click.option("--batch", is_flag=True, default=False, help="Treat input as a folder of photos.")
 @click.option("--overwrite", is_flag=True, default=False,
               help="Allow replacing source photos or existing output files.")
-def main(input_path: Path, output: Path | None, preset_name: str | None, batch: bool, overwrite: bool) -> None:
+@click.option("--strip-metadata", is_flag=True, default=False,
+              help="Remove EXIF (including GPS), ICC profile, and DPI metadata from output.")
+@click.option("--quality", type=click.IntRange(1, 100), default=None, metavar="1-100",
+              help="JPEG/WebP output quality (defaults: JPEG 92, WebP 90).")
+def main(
+    input_path: Path,
+    output: Path | None,
+    preset_name: str | None,
+    batch: bool,
+    overwrite: bool,
+    strip_metadata: bool,
+    quality: int | None,
+) -> None:
     """Auto-enhance a photo (or a folder of photos with --batch)."""
     preset = load_preset(preset_name) if preset_name else None
 
@@ -66,7 +91,13 @@ def main(input_path: Path, output: Path | None, preset_name: str | None, batch: 
                 click.echo(f"SKIP {file_path.name} (output already exists: {out_path})", err=True)
                 continue
             try:
-                _process_one(file_path, out_path, preset)
+                _process_one(
+                    file_path,
+                    out_path,
+                    preset,
+                    strip_metadata=strip_metadata,
+                    quality=quality,
+                )
                 processed += 1
                 click.echo(f"OK   {file_path.name} -> {out_path}")
             except PROCESSING_ERRORS as exc:
@@ -89,7 +120,16 @@ def main(input_path: Path, output: Path | None, preset_name: str | None, batch: 
                 f"Output already exists: {out_path}. Pass --overwrite to replace it, "
                 "or choose a different -o."
             )
-        _process_one(input_path, out_path, preset)
+        try:
+            _process_one(
+                input_path,
+                out_path,
+                preset,
+                strip_metadata=strip_metadata,
+                quality=quality,
+            )
+        except PROCESSING_ERRORS as exc:
+            raise click.ClickException(str(exc)) from exc
         click.echo(f"OK   {input_path.name} -> {out_path}")
 
 
