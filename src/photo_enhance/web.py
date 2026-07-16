@@ -8,6 +8,7 @@ only the preset step (via fetch) instead of re-uploading the file.
 """
 
 import base64
+import io
 import os
 import threading
 import uuid
@@ -16,6 +17,8 @@ from collections import OrderedDict
 import cv2
 import numpy as np
 from flask import Flask, jsonify, render_template, request
+from PIL import Image, UnidentifiedImageError
+from werkzeug.exceptions import RequestEntityTooLarge
 
 from photo_enhance.auto_levels import auto_enhance
 from photo_enhance.presets import apply_preset_blended, list_preset_choices, load_preset
@@ -24,6 +27,8 @@ app = Flask(__name__)
 
 MAX_UPLOAD_BYTES = 20 * 1024 * 1024  # 20MB
 app.config["MAX_CONTENT_LENGTH"] = MAX_UPLOAD_BYTES
+MAX_DECODED_PIXELS = 40_000_000
+MAX_IMAGE_DIMENSION = 12_000
 
 MAX_SESSIONS = 20
 _sessions: "OrderedDict[str, dict]" = OrderedDict()
@@ -56,6 +61,26 @@ def _bgr_to_data_uri(img_bgr: np.ndarray) -> str:
     return f"data:image/jpeg;base64,{encoded}"
 
 
+def _validate_encoded_image(file_bytes: bytes) -> str | None:
+    """Return a user-facing error when encoded dimensions are unsafe or unreadable."""
+    try:
+        with Image.open(io.BytesIO(file_bytes)) as image:
+            width, height = image.size
+    except (UnidentifiedImageError, OSError):
+        return "Could not read that file as an image."
+
+    if width > MAX_IMAGE_DIMENSION or height > MAX_IMAGE_DIMENSION:
+        return f"Image dimensions cannot exceed {MAX_IMAGE_DIMENSION:,} pixels per side."
+    if width * height > MAX_DECODED_PIXELS:
+        return f"Image cannot exceed {MAX_DECODED_PIXELS:,} decoded pixels."
+    return None
+
+
+@app.errorhandler(RequestEntityTooLarge)
+def upload_too_large(_error):
+    return jsonify(error=f"Photo is too large. Maximum upload size is {MAX_UPLOAD_BYTES // (1024 * 1024)} MB."), 413
+
+
 @app.route("/", methods=["GET"])
 def index():
     return render_template("index.html", presets=list_preset_choices())
@@ -67,19 +92,35 @@ def upload():
     if file is None or file.filename == "":
         return jsonify(error="Choose a photo first."), 400
 
-    file_bytes = np.frombuffer(file.read(), dtype=np.uint8)
-    img = cv2.imdecode(file_bytes, cv2.IMREAD_COLOR)
+    try:
+        encoded = file.read()
+    except OSError:
+        return jsonify(error="Could not read the uploaded photo."), 400
+
+    validation_error = _validate_encoded_image(encoded)
+    if validation_error:
+        return jsonify(error=validation_error), 400
+
+    try:
+        img = cv2.imdecode(np.frombuffer(encoded, dtype=np.uint8), cv2.IMREAD_COLOR)
+    except cv2.error:
+        return jsonify(error="Could not decode that image."), 400
     if img is None:
         return jsonify(error="Could not read that file as an image."), 400
 
-    enhanced = auto_enhance(img)
+    try:
+        enhanced = auto_enhance(img)
+    except (ValueError, cv2.error):
+        return jsonify(error="Could not enhance that image."), 422
     session_id = _store_session(img, enhanced)
 
-    return jsonify(
-        session_id=session_id,
-        before=_bgr_to_data_uri(img),
-        after=_bgr_to_data_uri(enhanced),
-    )
+    try:
+        before_uri = _bgr_to_data_uri(img)
+        after_uri = _bgr_to_data_uri(enhanced)
+    except (ValueError, cv2.error):
+        return jsonify(error="Could not encode the enhanced preview."), 500
+
+    return jsonify(session_id=session_id, before=before_uri, after=after_uri)
 
 
 @app.route("/apply", methods=["POST"])
@@ -104,11 +145,18 @@ def apply():
             preset = load_preset(preset_name)
         except ValueError as exc:
             return jsonify(error=str(exc)), 400
-        result = apply_preset_blended(enhanced, preset, intensity_fraction)
+        try:
+            result = apply_preset_blended(enhanced, preset, intensity_fraction)
+        except (ValueError, cv2.error):
+            return jsonify(error="Could not apply that filter."), 422
     else:
         result = enhanced
 
-    return jsonify(after=_bgr_to_data_uri(result))
+    try:
+        after_uri = _bgr_to_data_uri(result)
+    except (ValueError, cv2.error):
+        return jsonify(error="Could not encode the filtered preview."), 500
+    return jsonify(after=after_uri)
 
 
 def main():

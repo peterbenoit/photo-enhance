@@ -3,10 +3,14 @@
 from pathlib import Path
 
 import click
+import cv2
+from PIL import UnidentifiedImageError
 
 from photo_enhance.auto_levels import auto_enhance
 from photo_enhance.imageio_utils import is_supported_image, load_bgr, save_bgr
 from photo_enhance.presets import apply_preset, list_presets, load_preset
+
+PROCESSING_ERRORS = (OSError, ValueError, cv2.error, UnidentifiedImageError)
 
 
 def _output_path(input_path: Path, output: Path | None, is_batch: bool) -> Path:
@@ -30,11 +34,11 @@ def _process_one(input_path: Path, output_path: Path, preset: dict | None) -> No
 @click.argument("input_path", type=click.Path(exists=True, path_type=Path))
 @click.option("-o", "--output", "output", type=click.Path(path_type=Path), default=None,
               help="Output file (single mode) or output folder (--batch mode).")
-@click.option("--preset", "preset_name", type=str, default=None,
+@click.option("--preset", "preset_name", type=click.Choice(list_presets()), default=None,
               help=f"Optional creative preset. Available: {', '.join(list_presets())}")
 @click.option("--batch", is_flag=True, default=False, help="Treat input as a folder of photos.")
 @click.option("--overwrite", is_flag=True, default=False,
-              help="Allow output to overwrite the input file, or a batch output folder to be the input folder.")
+              help="Allow replacing source photos or existing output files.")
 def main(input_path: Path, output: Path | None, preset_name: str | None, batch: bool, overwrite: bool) -> None:
     """Auto-enhance a photo (or a folder of photos with --batch)."""
     preset = load_preset(preset_name) if preset_name else None
@@ -47,17 +51,30 @@ def main(input_path: Path, output: Path | None, preset_name: str | None, batch: 
                 "Output folder is the same as the input folder, which would overwrite your "
                 "source photos. Pass --overwrite to allow this, or choose a different -o."
             )
-        files = sorted(p for p in input_path.iterdir() if is_supported_image(p))
+        entries = sorted(p for p in input_path.iterdir() if p.is_file())
+        files = [p for p in entries if is_supported_image(p)]
         if not files:
             click.echo(f"No supported images found in {input_path}")
             return
+        processed = 0
+        skipped = len(entries) - len(files)
+        failed = 0
         for file_path in files:
             out_path = _output_path(file_path, output, is_batch=True)
+            if out_path.exists() and not overwrite:
+                skipped += 1
+                click.echo(f"SKIP {file_path.name} (output already exists: {out_path})", err=True)
+                continue
             try:
                 _process_one(file_path, out_path, preset)
+                processed += 1
                 click.echo(f"OK   {file_path.name} -> {out_path}")
-            except Exception as exc:
-                click.echo(f"SKIP {file_path.name} ({exc})", err=True)
+            except PROCESSING_ERRORS as exc:
+                failed += 1
+                click.echo(f"FAIL {file_path.name} ({exc})", err=True)
+        click.echo(f"Summary: {processed} processed, {skipped} skipped, {failed} failed")
+        if failed:
+            raise click.exceptions.Exit(1)
     else:
         if not input_path.is_file():
             raise click.UsageError("INPUT_PATH must be a file (use --batch for a folder).")
@@ -66,6 +83,11 @@ def main(input_path: Path, output: Path | None, preset_name: str | None, batch: 
             raise click.UsageError(
                 "Output path is the same as the input file, which would overwrite the original. "
                 "Pass --overwrite to allow this, or choose a different -o."
+            )
+        if out_path.exists() and not overwrite:
+            raise click.UsageError(
+                f"Output already exists: {out_path}. Pass --overwrite to replace it, "
+                "or choose a different -o."
             )
         _process_one(input_path, out_path, preset)
         click.echo(f"OK   {input_path.name} -> {out_path}")

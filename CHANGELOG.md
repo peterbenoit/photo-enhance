@@ -2,6 +2,28 @@
 
 All notable changes to this project are logged here, newest first.
 
+## 2026-07-16 — Safer output and truthful failures
+
+- CLI output is now encoded to a same-directory temporary file and atomically
+  moved into place, preventing a failed or interrupted save from leaving a
+  partial destination file.
+- Existing outputs are preserved by default. Single-file mode reports an error;
+  batch mode skips collisions. `--overwrite` explicitly opts into replacement.
+- Batch processing now distinguishes skipped files from failed images, continues
+  through expected image and I/O errors, prints processed/skipped/failed totals,
+  and exits non-zero when any image fails.
+- `--preset` now uses Click choice validation, producing a concise usage error
+  before processing starts when a preset name is invalid.
+- The public enhancement functions now validate BGR shape, non-empty dimensions,
+  `uint8` dtype, clipping percentage, CLAHE clip limit, and tile size.
+- Web uploads now enforce a 40-megapixel decoded-image cap and 12,000-pixel
+  per-side cap before OpenCV decoding, in addition to the 20 MB upload cap.
+  Oversized, malformed, decode, enhancement, filter, and preview-encoding
+  failures return friendly JSON errors.
+- Expanded the suite from 25 to 52 tests for output collisions, atomic-save
+  cleanup, batch summaries and exit codes, parameter validation, decoded image
+  limits, and web error responses.
+
 ## 2026-07-15 — Web UI usability pass: upload once, tweak filters live
 
 Driven by feedback that the first version's web UI required re-uploading the

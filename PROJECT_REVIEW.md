@@ -16,18 +16,18 @@ P2 improves product quality; P3 contains larger, optional capabilities.
 
 ## P0 — Protect inputs and make failures truthful
 
-- [ ] Refuse to process when a single-file output resolves to the input path; never overwrite an original implicitly.
-- [ ] Refuse or require an explicit `--overwrite` when a batch output directory is the input directory, because current output names can replace source files.
-- [ ] Write each output to a temporary file and atomically rename it only after encoding succeeds, so an interruption cannot leave a corrupt final file.
-- [ ] Add collision handling (`error`, `skip`, or explicit overwrite) instead of silently replacing an existing output.
-- [ ] Return a non-zero CLI exit status when any batch item fails, while still processing the remaining files.
-- [ ] Print a batch summary with processed, skipped, and failed counts.
-- [ ] Validate `clip_percent`, CLAHE clip limit, tile size, image shape, channel count, and dtype at the public API boundary with actionable errors.
-- [ ] Validate preset names with a Click choice and return a friendly web form error for an unknown or tampered preset instead of a server error.
-- [ ] Replace `app.run(debug=True, ...)` with an explicit safe default: debug off and host fixed to `127.0.0.1`; enable development debugging only through an opt-in flag or environment variable.
-- [ ] Add friendly handlers for oversized uploads (`413`), malformed images, decoding failures, enhancement failures, and encoding failures.
-- [ ] Enforce a decoded pixel/dimension limit in addition to the 20 MB compressed upload limit to prevent excessive memory use from highly compressed images.
-- [ ] Catch expected image/IO exceptions specifically; do not let a broad `except Exception` make programming defects look like skipped photos.
+- [x] Refuse to process when a single-file output resolves to the input path; never overwrite an original implicitly.
+- [x] Refuse or require an explicit `--overwrite` when a batch output directory is the input directory, because current output names can replace source files.
+- [x] Write each output to a temporary file and atomically rename it only after encoding succeeds, so an interruption cannot leave a corrupt final file.
+- [x] Add collision handling (`error`, `skip`, or explicit overwrite) instead of silently replacing an existing output.
+- [x] Return a non-zero CLI exit status when any batch item fails, while still processing the remaining files.
+- [x] Print a batch summary with processed, skipped, and failed counts.
+- [x] Validate `clip_percent`, CLAHE clip limit, tile size, image shape, channel count, and dtype at the public API boundary with actionable errors.
+- [x] Validate preset names with a Click choice and return a friendly web form error for an unknown or tampered preset instead of a server error.
+- [x] Replace `app.run(debug=True, ...)` with an explicit safe default: debug off and host fixed to `127.0.0.1`; enable development debugging only through an opt-in flag or environment variable.
+- [x] Add friendly handlers for oversized uploads (`413`), malformed images, decoding failures, enhancement failures, and encoding failures.
+- [x] Enforce a decoded pixel/dimension limit in addition to the 20 MB compressed upload limit to prevent excessive memory use from highly compressed images.
+- [x] Catch expected image/IO exceptions specifically; do not let a broad `except Exception` make programming defects look like skipped photos.
 
 ## P0 — Preserve image fidelity intentionally
 
