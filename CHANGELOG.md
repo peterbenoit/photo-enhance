@@ -2,6 +2,12 @@
 
 All notable changes to this project are logged here, newest first.
 
+## 2026-07-17 — Public repository license and usage warnings
+
+- Added the MIT license file promised by the package metadata.
+- Documented backup, overwrite, lossy-output, metadata/GPS, heuristic-quality,
+  and local development-server risks for public users.
+
 ## 2026-07-17 — Warmth and matte-fade finishing controls
 
 - Added a bipolar warmth control for cooling or warming any selected look, plus

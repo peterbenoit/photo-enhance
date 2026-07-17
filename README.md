@@ -140,6 +140,7 @@ uv run pytest
 ```
 photo-enhance/
 ├── README.md
+├── LICENSE                   # MIT license
 ├── CHANGELOG.md              # log of changes made
 ├── pyproject.toml
 ├── .vscode/launch.json       # VS Code Run button config
@@ -162,3 +163,23 @@ Photo Enhance stays local: no cloud processing, user accounts, or required ML
 model dependency. Larger optional capabilities—including RAW support,
 Real-ESRGAN integration, and `.cube` LUT files—remain tracked as possible future
 work in [PROJECT_REVIEW.md](PROJECT_REVIEW.md).
+
+## Use it on copies
+
+- Keep your originals backed up. The CLI avoids overwriting inputs unless you
+  pass `--overwrite`, but that flag can replace files permanently.
+- Enhancement is heuristic. Difficult lighting, dominant colors, or extreme
+  exposure can produce unwanted color shifts, clipping, or contrast. Review
+  every result before replacing or publishing a photo.
+- Output may be lossy or discard source information. This is a photo-finishing
+  tool, not an archival, restoration, or forensic workflow.
+- The CLI preserves supported EXIF metadata—including GPS—by default. Use
+  `--strip-metadata` before sharing when location or camera data is sensitive.
+  Web previews and downloads are metadata-free JPEGs.
+- The web interface uses Flask's development server on `127.0.0.1`. Do not
+  expose it to a public network or treat it as a production web service.
+
+## License
+
+Released under the [MIT License](LICENSE). The software is provided as-is,
+without warranty; see the license text for the complete terms.
