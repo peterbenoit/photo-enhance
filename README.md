@@ -11,7 +11,9 @@ Two ways to use it:
   entirely on `localhost`; nothing leaves the machine.
 - **CLI** — enhance one photo or batch-process a folder.
 
-See [`photo-auto-enhance-spec.md`](photo-auto-enhance-spec.md) for the original design spec, [`PROJECT_REVIEW.md`](PROJECT_REVIEW.md) for the outstanding review backlog, and [`TASKS.md`](TASKS.md) / [`CHANGELOG.md`](CHANGELOG.md) for build progress.
+See [`photo-auto-enhance-spec.md`](photo-auto-enhance-spec.md) for the original
+design spec, [`PROJECT_REVIEW.md`](PROJECT_REVIEW.md) for the outstanding review
+backlog, and [`CHANGELOG.md`](CHANGELOG.md) for build progress.
 
 ## Requirements
 
@@ -138,7 +140,6 @@ uv run pytest
 ```
 photo-enhance/
 ├── README.md
-├── TASKS.md                 # checkbox progress list
 ├── CHANGELOG.md              # log of changes made
 ├── pyproject.toml
 ├── .vscode/launch.json       # VS Code Run button config
@@ -160,4 +161,4 @@ photo-enhance/
 Photo Enhance stays local: no cloud processing, user accounts, or required ML
 model dependency. Larger optional capabilities—including RAW support,
 Real-ESRGAN integration, and `.cube` LUT files—remain tracked as possible future
-work in [TASKS.md](TASKS.md).
+work in [PROJECT_REVIEW.md](PROJECT_REVIEW.md).

@@ -8,6 +8,7 @@ dist/
 build/
 .env
 uv.lock.bak
+TASKS.md
 
 # example/test images people drop in locally
 examples/*.jpg

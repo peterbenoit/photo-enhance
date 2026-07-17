@@ -119,11 +119,10 @@ P2 improves product quality; P3 contains larger, optional capabilities.
 - [ ] Add the actual `LICENSE` file promised by `pyproject.toml`.
 - [ ] Exclude `.claude/settings.local.json` and editor-local configuration from the source distribution; the current sdist includes them.
 - [ ] Decide whether `.vscode/` belongs in the sdist; keep useful shared launch settings in Git but omit them from published artifacts if distributing publicly.
-- [ ] Resolve the Python support mismatch: README says Python 3.12 is required while `pyproject.toml` declares 3.11 and newer.
+- [x] Resolve the Python support mismatch: Python 3.11+ is supported while local development remains pinned to 3.12.
 - [ ] Decide whether the package is macOS-only; if not, document and test the actual supported platforms.
 - [ ] Make the optional web dependency behavior friendly: `photo-enhance-web` should explain how to install the `web` extra instead of failing with `ModuleNotFoundError`.
 - [ ] Add authors, project URLs, classifiers, keywords, and a typed license expression if the package will be published.
-- [ ] Keep `TASKS.md` accurate by marking the already-created first commit complete and separating historical MVP completion from future work.
 - [ ] Add a concise developer guide covering environment setup, tests, formatting, type checks, builds, and release steps.
 - [ ] Add real before/after examples with permission-compatible source images; the current `examples/` policy ignores the very assets users need to assess quality.
 - [ ] Document algorithm limitations, lossy transformations, supported modes/bit depths, output naming, overwrite policy, and metadata/privacy behavior.

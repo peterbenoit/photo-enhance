@@ -190,16 +190,15 @@ at selection time.
   between the un-filtered and fully-filtered result). Chose one slider that
   works identically for every preset over per-preset parameter schemas, to
   ship usability improvements without redesigning the preset JSON format.
-  Revisit if a single slider proves too blunt — noted in `TASKS.md`.
+  Revisit if a single slider proves too blunt.
 - **Preset dropdown now shows real names/descriptions** (`list_preset_choices()`
   in `presets.py`) instead of deriving a label from the filename.
 - Rewrote `templates/index.html` with vanilla JS (`fetch`, no framework):
   upload triggers `/upload` via `FormData`; preset/intensity changes trigger
   `/apply` via JSON `fetch`, with a request token to discard stale responses
   if the user changes the slider again before a prior request returns.
-- **Folded in two P0 fixes from `PROJECT_REVIEW.md`** (a review backlog file
-  the project owner added; full backlog now tracked in `TASKS.md`, everything
-  else deferred):
+- **Folded in two P0 fixes from `PROJECT_REVIEW.md`**; everything else remained
+  deferred in the review backlog:
   - `web.py` no longer runs with `debug=True` by default — debug is off
     unless `PHOTO_ENHANCE_DEBUG=1` is set, and host is fixed to `127.0.0.1`.
   - `cli.py` now refuses to let a single-file output overwrite its input, and
@@ -221,9 +220,7 @@ at selection time.
   pickers can't be scripted): uploaded a synthetic test photo once, then
   switched preset and dragged intensity twice, confirmed via the network log
   that exactly one `/upload` call ever fired.
-- Merged `PROJECT_REVIEW.md`'s full backlog into `TASKS.md`, organized by the
-  original P0-P3 priority, so open items aren't only tracked in a
-  loose top-level file.
+- Organized the outstanding review backlog by its original P0-P3 priority.
 
 ## 2026-07-15 — Initial scaffold
 
