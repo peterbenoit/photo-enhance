@@ -25,7 +25,16 @@ def test_index_lists_all_presets():
     resp = client.get("/")
     assert resp.status_code == 200
     text = resp.get_data(as_text=True)
-    for name in ("Warm Film", "Cool Moody", "High Contrast B&amp;W", "Faded Vintage"):
+    for name in (
+        "Warm Film",
+        "Cool Moody",
+        "High Contrast B&amp;W",
+        "Faded Vintage",
+        "Golden Hour",
+        "Teal &amp; Ember",
+        "Cross Process",
+        "Soft Portrait",
+    ):
         assert name in text
 
 
@@ -48,7 +57,8 @@ def test_index_has_progressive_dropzone_and_keyboard_comparison_controls():
     text = client.get("/").get_data(as_text=True)
 
     assert 'id="upload-dropzone"' in text
-    assert "or drag and drop one photo here" in text
+    assert "Drop a photo into the darkroom" in text
+    assert 'class="filter-radio" type="radio" name="preset"' in text
     assert 'id="comparison-controls" hidden' in text
     assert 'id="slider-view-button" aria-pressed="true"' in text
     assert 'id="side-by-side-button" aria-pressed="false"' in text

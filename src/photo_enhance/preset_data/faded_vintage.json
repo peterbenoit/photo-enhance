@@ -1,6 +1,7 @@
 {
   "name": "Faded Vintage",
   "description": "Lifted blacks, flattened contrast, warm low-saturation fade",
+  "swatch": ["#6f584e", "#c9b18e"],
   "curve": {
     "r": [[0, 25], [128, 140], [255, 235]],
     "g": [[0, 20], [128, 130], [255, 230]],

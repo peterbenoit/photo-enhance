@@ -77,8 +77,10 @@ uv run photo-enhance path/to/photo.jpg --strip-metadata --quality 90
 uv run photo-enhance path/to/folder --batch -o path/to/output_folder
 ```
 
-Available presets: `warm_film`, `cool_moody`, `high_contrast_bw`, `faded_vintage`
-(defined as JSON tone curves in `src/photo_enhance/preset_data/`).
+Available presets: `warm_film`, `cool_moody`, `high_contrast_bw`,
+`faded_vintage`, `golden_hour`, `teal_ember`, `cross_process`, and
+`soft_portrait` (defined as JSON tone curves in
+`src/photo_enhance/preset_data/`).
 
 The CLI applies EXIF orientation to the pixels and removes the orientation tag
 so viewers cannot rotate the result twice. By default it preserves EXIF

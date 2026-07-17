@@ -1,6 +1,7 @@
 {
   "name": "Cool Moody",
   "description": "Desaturated shadows, cool blue cast, slightly crushed blacks",
+  "swatch": ["#17243b", "#7198ba"],
   "curve": {
     "r": [[0, 0], [128, 118], [255, 245]],
     "g": [[0, 5], [128, 130], [255, 250]],

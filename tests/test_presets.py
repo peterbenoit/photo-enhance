@@ -10,9 +10,18 @@ from photo_enhance.presets import (
 )
 
 
-def test_list_presets_finds_all_four_shipped_presets():
+def test_list_presets_finds_all_shipped_presets():
     presets = list_presets()
-    assert set(presets) == {"warm_film", "cool_moody", "high_contrast_bw", "faded_vintage"}
+    assert set(presets) == {
+        "cool_moody",
+        "cross_process",
+        "faded_vintage",
+        "golden_hour",
+        "high_contrast_bw",
+        "soft_portrait",
+        "teal_ember",
+        "warm_film",
+    }
 
 
 def test_curve_to_lut_identity_curve_is_a_noop():
@@ -39,10 +48,20 @@ def test_apply_preset_bw_zeroes_saturation():
 def test_list_preset_choices_includes_display_name_and_description():
     choices = list_preset_choices()
     ids = {c["id"] for c in choices}
-    assert ids == {"warm_film", "cool_moody", "high_contrast_bw", "faded_vintage"}
+    assert ids == {
+        "cool_moody",
+        "cross_process",
+        "faded_vintage",
+        "golden_hour",
+        "high_contrast_bw",
+        "soft_portrait",
+        "teal_ember",
+        "warm_film",
+    }
     warm = next(c for c in choices if c["id"] == "warm_film")
     assert warm["name"] == "Warm Film"
     assert warm["description"]
+    assert warm["swatch"] == ["#5e3023", "#efb267"]
 
 
 def test_apply_preset_blended_zero_intensity_is_a_noop():

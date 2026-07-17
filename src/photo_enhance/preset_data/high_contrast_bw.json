@@ -1,6 +1,7 @@
 {
   "name": "High Contrast B&W",
   "description": "Fully desaturated with a steep S-curve for punchy contrast",
+  "swatch": ["#202224", "#e7e2d8"],
   "curve": {
     "r": [[0, 0], [64, 40], [128, 128], [192, 215], [255, 255]],
     "g": [[0, 0], [64, 40], [128, 128], [192, 215], [255, 255]],

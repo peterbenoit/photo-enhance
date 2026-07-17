@@ -6,102 +6,365 @@
   <title>Photo Auto-Enhance</title>
   <style>
     :root {
-      color-scheme: light dark;
-      --error-color: #b42318;
-      --focus-color: #005fcc;
-      --border-color: #767676;
-      --drop-background: #eaf3ff;
+      color-scheme: dark;
+      --page: #0b0d0f;
+      --surface: #14171a;
+      --surface-raised: #1a1e21;
+      --surface-soft: #20252a;
+      --text: #f5f2ea;
+      --muted: #a2a7a9;
+      --border: #333a3f;
+      --border-strong: #4a5359;
+      --accent: #f2b35f;
+      --accent-strong: #ffd18c;
+      --accent-ink: #251a0c;
+      --error-color: #ffb4ab;
+      --focus-color: #8bd3ff;
+      --drop-background: #202a31;
+      --radius-sm: 8px;
+      --radius-md: 14px;
+      --radius-lg: 20px;
     }
-    @media (prefers-color-scheme: dark) {
-      :root {
-        --error-color: #ffb4ab;
-        --focus-color: #8ec8ff;
-        --border-color: #a9a9a9;
-        --drop-background: #102a43;
-      }
-    }
+    * { box-sizing: border-box; }
+    [hidden] { display: none !important; }
+    html { background: var(--page); }
     body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      max-width: 960px;
-      margin: 2rem auto;
-      padding: 0 1rem;
-      line-height: 1.4;
+      margin: 0;
+      min-height: 100vh;
+      color: var(--text);
+      background:
+        radial-gradient(circle at 50% -10%, rgb(242 179 95 / 10%), transparent 32rem),
+        var(--page);
+      font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
     }
-    h1 { font-size: 1.4rem; }
-    h2 { font-size: 1.15rem; }
+    button, input { font: inherit; }
+    button, a { -webkit-tap-highlight-color: transparent; }
+    h1, h2, p { margin-top: 0; }
+    h1 {
+      max-width: 760px;
+      margin-bottom: 0.6rem;
+      font-family: ui-rounded, "Avenir Next", Inter, sans-serif;
+      font-size: clamp(2.25rem, 6vw, 4.9rem);
+      line-height: 0.98;
+      letter-spacing: -0.055em;
+      font-weight: 700;
+    }
+    h2 { font-size: 1.05rem; letter-spacing: -0.01em; }
     .skip-link {
       position: absolute;
       left: 1rem;
       top: 0;
       transform: translateY(-150%);
       padding: 0.6rem 0.8rem;
-      background: Canvas;
-      color: CanvasText;
+      background: var(--text);
+      color: var(--page);
       border: 2px solid var(--focus-color);
-      z-index: 10;
+      z-index: 100;
     }
     .skip-link:focus { transform: translateY(0); }
-    fieldset {
-      border: 1px solid var(--border-color);
-      border-radius: 8px;
-      padding: 1rem;
-      margin: 0 0 1.5rem;
+    .site-header {
+      max-width: 1320px;
+      margin: 0 auto;
+      padding: 1.25rem clamp(1rem, 4vw, 3rem) 0;
       display: flex;
-      flex-wrap: wrap;
-      gap: 1rem;
       align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
     }
-    fieldset[disabled] { opacity: 0.5; }
-    .upload-dropzone { position: relative; }
+    .brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.7rem;
+      color: var(--text);
+      font-size: 0.76rem;
+      font-weight: 800;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+    }
+    .brand-mark {
+      width: 30px;
+      height: 30px;
+      display: grid;
+      place-items: center;
+      border: 1px solid var(--border-strong);
+      border-radius: 50%;
+    }
+    .brand-mark::before {
+      content: "";
+      width: 10px;
+      height: 10px;
+      border: 2px solid var(--accent);
+      border-radius: 50%;
+      box-shadow: 0 0 18px rgb(242 179 95 / 55%);
+    }
+    .privacy-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.45rem;
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.76rem;
+    }
+    .privacy-badge::before {
+      content: "";
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #76c893;
+      box-shadow: 0 0 0 4px rgb(118 200 147 / 10%);
+    }
+    main {
+      width: min(100%, 1320px);
+      margin: 0 auto;
+      padding: clamp(3rem, 8vw, 7rem) clamp(1rem, 4vw, 3rem) 4rem;
+    }
+    .intro { margin-bottom: clamp(2rem, 5vw, 4rem); }
+    .eyebrow {
+      margin-bottom: 1rem;
+      color: var(--accent);
+      font-size: 0.72rem;
+      font-weight: 800;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+    }
+    .lede {
+      max-width: 590px;
+      margin-bottom: 0;
+      color: var(--muted);
+      font-size: clamp(1rem, 2vw, 1.16rem);
+    }
+    .upload-shell { margin-bottom: 2rem; }
+    fieldset {
+      min-width: 0;
+      margin: 0;
+    }
+    fieldset[disabled] { opacity: 0.42; }
+    .upload-dropzone {
+      position: relative;
+      min-height: 182px;
+      padding: clamp(1.25rem, 4vw, 2.4rem);
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 1.5rem;
+      overflow: hidden;
+      border: 1px dashed var(--border-strong);
+      border-radius: var(--radius-lg);
+      background: rgb(20 23 26 / 75%);
+    }
+    .upload-copy { max-width: 600px; }
+    .upload-title {
+      display: block;
+      margin-bottom: 0.35rem;
+      font-family: ui-rounded, "Avenir Next", sans-serif;
+      font-size: clamp(1.2rem, 2.4vw, 1.75rem);
+      font-weight: 700;
+      letter-spacing: -0.025em;
+    }
+    .upload-note { display: block; color: var(--muted); font-size: 0.9rem; }
     .upload-dropzone.is-dragging {
       background: var(--drop-background);
-      outline: 3px dashed var(--focus-color);
-      outline-offset: -6px;
+      border-color: var(--focus-color);
+      box-shadow: inset 0 0 0 2px var(--focus-color);
     }
-    .drop-hint { margin: 0; font-size: 0.9rem; }
-    label { display: flex; flex-direction: column; gap: 0.25rem; font-size: 0.9rem; }
-    select, input[type="file"], button, .download-link {
-      font-size: 1rem;
-      padding: 0.4rem 0.6rem;
+    input[type="file"] {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip: rect(0 0 0 0);
+      white-space: nowrap;
+      clip-path: inset(50%);
+    }
+    .upload-actions { display: flex; align-items: center; gap: 0.7rem; flex-wrap: wrap; }
+    .file-picker, button, .download-link {
       min-height: 44px;
-      box-sizing: border-box;
+      padding: 0.68rem 1rem;
+      border: 1px solid var(--border-strong);
+      border-radius: 999px;
+      color: var(--text);
+      background: var(--surface-soft);
+      font-size: 0.9rem;
+      font-weight: 700;
     }
-    input[type="range"] { width: 180px; }
+    .file-picker { display: inline-flex; align-items: center; cursor: pointer; }
+    #upload-button {
+      color: var(--accent-ink);
+      border-color: var(--accent);
+      background: var(--accent);
+    }
     button { cursor: pointer; }
+    button:disabled { cursor: wait; opacity: 0.65; }
     :focus-visible { outline: 3px solid var(--focus-color); outline-offset: 3px; }
     .error { color: var(--error-color); font-weight: 600; }
-    .status { opacity: 0.75; font-size: 0.9rem; min-height: 1.2em; }
-    .compare { display: flex; gap: 1rem; flex-wrap: wrap; }
-    .compare figure { flex: 1 1 300px; margin: 0; position: relative; }
-    .compare img { width: 100%; height: auto; border-radius: 6px; border: 1px solid var(--border-color); }
-    figcaption { text-align: center; font-size: 0.9rem; opacity: 0.8; margin-top: 0.25rem; }
-    .hint { font-size: 0.85rem; opacity: 0.7; }
-    #preset-description { font-size: 0.8rem; opacity: 0.7; flex-basis: 100%; margin: 0; }
-    .result-actions { margin: 1rem 0; }
+    .feedback { min-height: 1.5rem; margin: 0.75rem 0; }
+    .feedback p { margin: 0; }
+    .status { color: var(--muted); font-size: 0.88rem; min-height: 1.2em; }
+    .editor-shell {
+      display: grid;
+      grid-template-columns: minmax(250px, 320px) minmax(0, 1fr);
+      gap: 1.25rem;
+      align-items: start;
+    }
+    .controls-panel {
+      position: sticky;
+      top: 1rem;
+      padding: 1.15rem;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      background: var(--surface);
+    }
+    .controls-panel legend {
+      padding: 0;
+      margin-bottom: 0.9rem;
+      font-size: 0.74rem;
+      font-weight: 800;
+      letter-spacing: 0.13em;
+      text-transform: uppercase;
+    }
+    .filter-strip {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.65rem;
+    }
+    .filter-option { position: relative; min-width: 0; }
+    .filter-radio {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      opacity: 0;
+    }
+    .filter-card {
+      min-height: 104px;
+      padding: 0.55rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: var(--surface-raised);
+      cursor: pointer;
+    }
+    .filter-card:hover { border-color: var(--border-strong); }
+    .filter-radio:checked + .filter-card {
+      border-color: var(--accent);
+      box-shadow: inset 0 0 0 1px var(--accent);
+    }
+    .filter-radio:focus-visible + .filter-card {
+      outline: 3px solid var(--focus-color);
+      outline-offset: 3px;
+    }
+    .filter-swatch {
+      height: 46px;
+      border-radius: 5px;
+      background: linear-gradient(135deg, var(--swatch-start), var(--swatch-end));
+      box-shadow: inset 0 0 0 1px rgb(255 255 255 / 10%);
+    }
+    .filter-swatch-auto {
+      position: relative;
+      background: linear-gradient(135deg, #21272b 0 48%, #d5d8d7 48% 52%, #465d67 52%);
+    }
+    .filter-name { font-size: 0.78rem; font-weight: 700; line-height: 1.2; }
+    .intensity-control {
+      margin-top: 1rem;
+      padding-top: 1rem;
+      border-top: 1px solid var(--border);
+    }
+    .intensity-heading {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 1rem;
+      color: var(--muted);
+      font-size: 0.78rem;
+      font-weight: 700;
+    }
+    #intensity-value { color: var(--text); font-variant-numeric: tabular-nums; }
+    input[type="range"] { accent-color: var(--accent); }
+    #intensity-slider { width: 100%; min-height: 44px; margin: 0; }
+    #preset-description {
+      min-height: 3.9em;
+      margin: 0.35rem 0 0;
+      color: var(--muted);
+      font-size: 0.78rem;
+      line-height: 1.4;
+    }
+    .result-panel {
+      padding: clamp(0.75rem, 2vw, 1.25rem);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      background: var(--surface);
+    }
+    .result-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 1rem;
+      margin-bottom: 1rem;
+    }
+    .result-kicker {
+      margin-bottom: 0.25rem;
+      color: var(--accent);
+      font-size: 0.68rem;
+      font-weight: 800;
+      letter-spacing: 0.13em;
+      text-transform: uppercase;
+    }
+    #results-heading { margin-bottom: 0; font-size: 1.25rem; }
     .download-link {
       display: inline-flex;
       align-items: center;
+      justify-content: center;
+      color: var(--accent-ink);
+      border-color: var(--accent);
+      background: var(--accent);
       text-decoration: none;
-      border: 1px solid var(--border-color);
-      border-radius: 4px;
+      white-space: nowrap;
     }
-    .result-details { display: flex; flex-wrap: wrap; gap: 0.5rem 1.5rem; margin: 0.75rem 0; }
-    .result-details div { display: flex; gap: 0.35rem; }
-    .result-details dt { font-weight: 600; }
-    .result-details dd { margin: 0; }
-    .comparison-controls { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
-    .comparison-controls p { margin: 0 0.5rem 0 0; }
+    .result-details {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin: 0 0 1rem;
+    }
+    .result-details div {
+      padding: 0.35rem 0.55rem;
+      display: flex;
+      gap: 0.3rem;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      color: var(--muted);
+      font-size: 0.7rem;
+    }
+    .result-details dt { font-weight: 700; }
+    .result-details dd { margin: 0; color: var(--text); }
+    .compare { display: flex; gap: 1rem; flex-wrap: wrap; }
+    .compare figure { flex: 1 1 300px; margin: 0; position: relative; }
+    .compare img { width: 100%; height: auto; border-radius: var(--radius-sm); border: 1px solid var(--border); }
+    figcaption { text-align: center; font-size: 0.9rem; opacity: 0.8; margin-top: 0.25rem; }
+    .comparison-controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.35rem;
+      align-items: center;
+      margin-bottom: 0.75rem;
+    }
+    .comparison-controls p { margin: 0 0.4rem 0 0; color: var(--muted); font-size: 0.78rem; }
+    .comparison-controls button { min-height: 36px; padding: 0.4rem 0.75rem; font-size: 0.78rem; }
     .comparison-controls button[aria-pressed="true"] {
-      border: 2px solid var(--focus-color);
-      font-weight: 700;
+      color: var(--accent-ink);
+      border-color: var(--accent);
+      background: var(--accent);
     }
     .comparison-slider {
       --comparison-position: 50%;
       position: relative;
       overflow: hidden;
-      border: 1px solid var(--border-color);
-      border-radius: 6px;
-      margin-top: 1rem;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      background: #050607;
       line-height: 0;
       user-select: none;
     }
@@ -120,11 +383,12 @@
     .comparison-label {
       position: absolute;
       top: 0.75rem;
-      padding: 0.25rem 0.45rem;
-      background: rgb(0 0 0 / 72%);
+      padding: 0.35rem 0.55rem;
+      background: rgb(8 10 11 / 78%);
       color: white;
-      border-radius: 3px;
-      font-size: 0.8rem;
+      border: 1px solid rgb(255 255 255 / 15%);
+      border-radius: 999px;
+      font-size: 0.7rem;
       line-height: 1.2;
       pointer-events: none;
     }
@@ -182,84 +446,143 @@
       outline-offset: 4px;
     }
     .comparison-instructions { margin: 0.5rem 0 0; font-size: 0.85rem; }
+    .privacy-note {
+      max-width: 760px;
+      margin: 1rem 0 0;
+      color: var(--muted);
+      font-size: 0.76rem;
+    }
+    body.has-results main { padding-top: clamp(2rem, 5vw, 4rem); }
+    body.has-results .intro { display: none; }
+    body.has-results .upload-dropzone { min-height: 94px; padding-block: 1rem; }
+    body.has-results .upload-title { font-size: 1rem; }
+    body.has-results .upload-note { display: none; }
+    @media (max-width: 860px) {
+      .editor-shell { grid-template-columns: 1fr; }
+      .controls-panel { position: static; }
+      .filter-strip { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    }
+    @media (max-width: 620px) {
+      .privacy-badge { font-size: 0; }
+      .privacy-badge::after { content: "Local"; font-size: 0.76rem; }
+      main { padding-top: 3.5rem; }
+      .upload-dropzone { grid-template-columns: 1fr; }
+      .upload-actions { align-items: stretch; }
+      .file-picker, #upload-button { flex: 1 1 auto; justify-content: center; }
+      .filter-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .result-header { align-items: stretch; flex-direction: column; }
+      .download-link { width: 100%; }
+    }
+    @media (prefers-reduced-motion: no-preference) {
+      .filter-card, button, .download-link { transition: border-color 120ms ease, background 120ms ease, color 120ms ease; }
+    }
   </style>
 </head>
 <body>
   <a class="skip-link" href="#main">Skip to main content</a>
+  <header class="site-header">
+    <div class="brand"><span class="brand-mark" aria-hidden="true"></span>Local Photo Lab</div>
+    <p class="privacy-badge">Private processing on this device</p>
+  </header>
   <main id="main">
-    <h1>Photo Auto-Enhance</h1>
-    <p class="hint" id="upload-hint">Runs on localhost with debug mode off by default. Nothing leaves this machine. Upload once, then change the preset or its intensity without re-uploading.</p>
-    <p class="hint">The last 20 uploads are held temporarily in memory and cleared when the server restarts. An opaque session ID in the address bar restores the current result after refresh while that session exists. Previews are 8-bit JPEGs without source metadata.</p>
+    <section class="intro" aria-labelledby="page-title">
+      <p class="eyebrow">Classical image processing · zero cloud</p>
+      <h1 id="page-title">Bring the light back.</h1>
+      <p class="lede" id="upload-hint">Correct color and contrast automatically, then explore expressive film-inspired looks. Your photo never leaves this machine.</p>
+    </section>
 
-    <form id="upload-form">
+    <form class="upload-shell" id="upload-form">
       <fieldset class="upload-dropzone" id="upload-dropzone">
-        <label for="photo-input">Photo
+        <div class="upload-copy">
+          <span class="upload-title">Drop a photo into the darkroom</span>
+          <span class="upload-note" id="drop-hint">JPEG, PNG, TIFF, BMP, or WebP · up to 20 MB</span>
+        </div>
+        <div class="upload-actions">
+          <label class="file-picker" for="photo-input">Choose photo</label>
           <input type="file" id="photo-input" name="photo" accept="image/*" required aria-describedby="upload-hint error-message">
-        </label>
-        <button type="submit" id="upload-button">Upload photo</button>
-        <p class="drop-hint" id="drop-hint">or drag and drop one photo here</p>
+          <button type="submit" id="upload-button">Enhance photo</button>
+        </div>
       </fieldset>
     </form>
 
-    <fieldset id="controls" disabled>
-      <legend>Enhancement controls</legend>
-      <label for="preset-select">Filter
-        <select id="preset-select">
-          <option value="">No filter (auto-enhance only)</option>
+    <div class="feedback">
+      <p class="error" id="error-message" role="alert" tabindex="-1"></p>
+      <p class="status" id="status-message" role="status" aria-live="polite" aria-atomic="true"></p>
+    </div>
+
+    <div class="editor-shell" id="editor-shell" hidden>
+      <fieldset class="controls-panel" id="controls" disabled>
+        <legend>Choose a look</legend>
+        <div class="filter-strip" id="filter-strip">
+          <div class="filter-option">
+            <input class="filter-radio" type="radio" name="preset" id="preset-auto" value="" checked>
+            <label class="filter-card" for="preset-auto">
+              <span class="filter-swatch filter-swatch-auto" aria-hidden="true"></span>
+              <span class="filter-name">Auto</span>
+            </label>
+          </div>
           {% for preset in presets %}
-            <option value="{{ preset.id }}">{{ preset.name }}</option>
+            <div class="filter-option">
+              <input class="filter-radio" type="radio" name="preset" id="preset-{{ preset.id }}" value="{{ preset.id }}">
+              <label class="filter-card" for="preset-{{ preset.id }}">
+                <span class="filter-swatch" style="--swatch-start: {{ preset.swatch[0] }}; --swatch-end: {{ preset.swatch[1] }}" aria-hidden="true"></span>
+                <span class="filter-name">{{ preset.name }}</span>
+              </label>
+            </div>
           {% endfor %}
-        </select>
-      </label>
-      <label for="intensity-slider">Intensity <span id="intensity-value">100%</span>
-        <input type="range" id="intensity-slider" min="0" max="100" value="100" disabled>
-      </label>
-      <p id="preset-description"></p>
-    </fieldset>
-
-    <p class="error" id="error-message" role="alert" tabindex="-1"></p>
-    <p class="status" id="status-message" role="status" aria-live="polite" aria-atomic="true"></p>
-
-    <section id="results" aria-labelledby="results-heading" hidden>
-      <h2 id="results-heading" tabindex="-1">Enhancement result</h2>
-      <dl class="result-details" aria-label="Result details">
-        <div><dt>Dimensions:</dt><dd id="detail-dimensions"></dd></div>
-        <div><dt>Source:</dt><dd id="detail-source-format"></dd></div>
-        <div><dt>Output:</dt><dd id="detail-output-format"></dd></div>
-        <div><dt>Filter:</dt><dd id="detail-filter"></dd></div>
-        <div><dt>Processing:</dt><dd id="detail-processing-time"></dd></div>
-      </dl>
-      <p class="result-actions">
-        <a class="download-link" id="download-link" href="#" download hidden>Download enhanced JPEG</a>
-      </p>
-      <div class="comparison-controls" id="comparison-controls" hidden>
-        <p id="comparison-view-label">Comparison view:</p>
-        <button type="button" id="slider-view-button" aria-pressed="true" aria-describedby="comparison-view-label">Slider</button>
-        <button type="button" id="side-by-side-button" aria-pressed="false" aria-describedby="comparison-view-label">Side by side</button>
-      </div>
-      <div class="comparison-slider" id="comparison-slider" hidden>
-        <img id="comparison-before-img" alt="Original photo">
-        <div class="comparison-after">
-          <img id="comparison-after-img" alt="Enhanced photo">
-          <span class="comparison-label comparison-label-after" aria-hidden="true">After</span>
         </div>
-        <span class="comparison-label comparison-label-before" aria-hidden="true">Before</span>
-        <span class="comparison-divider" aria-hidden="true"></span>
-        <input class="comparison-range" id="comparison-range" type="range" min="0" max="100" value="50" aria-label="Before and after dividing line" aria-describedby="comparison-instructions">
-        <span class="comparison-handle" aria-hidden="true"></span>
-      </div>
-      <p class="comparison-instructions" id="comparison-instructions" hidden>Drag across the image or use the arrow keys to reveal more or less of the enhanced photo.</p>
-      <div class="compare" id="side-by-side-view">
-        <figure>
-          <img id="before-img" alt="Original photo">
-          <figcaption>Before</figcaption>
-        </figure>
-        <figure>
-          <img id="after-img" alt="Enhanced photo">
-          <figcaption id="after-caption">After</figcaption>
-        </figure>
-      </div>
-    </section>
+        <div class="intensity-control">
+          <label class="intensity-heading" for="intensity-slider">Intensity <span id="intensity-value">100%</span></label>
+          <input type="range" id="intensity-slider" min="0" max="100" value="100" disabled>
+          <p id="preset-description">Automatic color, levels, and local contrast correction.</p>
+        </div>
+      </fieldset>
+
+      <section class="result-panel" id="results" aria-labelledby="results-heading" hidden>
+        <div class="result-header">
+          <div>
+            <p class="result-kicker">Live preview</p>
+            <h2 id="results-heading" tabindex="-1">Your enhanced photo</h2>
+          </div>
+          <a class="download-link" id="download-link" href="#" download hidden>Download JPEG</a>
+        </div>
+        <dl class="result-details" aria-label="Result details">
+          <div><dt>Size</dt><dd id="detail-dimensions"></dd></div>
+          <div><dt>Source</dt><dd id="detail-source-format"></dd></div>
+          <div><dt>Output</dt><dd id="detail-output-format"></dd></div>
+          <div><dt>Look</dt><dd id="detail-filter"></dd></div>
+          <div><dt>Time</dt><dd id="detail-processing-time"></dd></div>
+        </dl>
+        <div class="comparison-controls" id="comparison-controls" hidden>
+          <p id="comparison-view-label">View</p>
+          <button type="button" id="slider-view-button" aria-pressed="true" aria-describedby="comparison-view-label">Split</button>
+          <button type="button" id="side-by-side-button" aria-pressed="false" aria-describedby="comparison-view-label">Side by side</button>
+        </div>
+        <div class="comparison-slider" id="comparison-slider" hidden>
+          <img id="comparison-before-img" alt="Original photo">
+          <div class="comparison-after">
+            <img id="comparison-after-img" alt="Enhanced photo">
+            <span class="comparison-label comparison-label-after" aria-hidden="true">After</span>
+          </div>
+          <span class="comparison-label comparison-label-before" aria-hidden="true">Before</span>
+          <span class="comparison-divider" aria-hidden="true"></span>
+          <input class="comparison-range" id="comparison-range" type="range" min="0" max="100" value="50" aria-label="Before and after dividing line" aria-describedby="comparison-instructions">
+          <span class="comparison-handle" aria-hidden="true"></span>
+        </div>
+        <p class="comparison-instructions" id="comparison-instructions" hidden>Drag across the photo or use the arrow keys to change the split.</p>
+        <div class="compare" id="side-by-side-view">
+          <figure>
+            <img id="before-img" alt="Original photo">
+            <figcaption>Before</figcaption>
+          </figure>
+          <figure>
+            <img id="after-img" alt="Enhanced photo">
+            <figcaption id="after-caption">After</figcaption>
+          </figure>
+        </div>
+      </section>
+    </div>
+    <p class="privacy-note">The last 20 uploads are held temporarily in memory and cleared when the server restarts. Previews are metadata-free 8-bit JPEGs; downloads use private, short-lived local URLs.</p>
   </main>
 
   <script type="module">
@@ -271,8 +594,9 @@
     const uploadDropzone = document.getElementById("upload-dropzone");
     const photoInput = document.getElementById("photo-input");
     const uploadButton = document.getElementById("upload-button");
+    const editorShell = document.getElementById("editor-shell");
     const controls = document.getElementById("controls");
-    const presetSelect = document.getElementById("preset-select");
+    const presetRadios = Array.from(document.querySelectorAll('input[name="preset"]'));
     const intensitySlider = document.getElementById("intensity-slider");
     const intensityValue = document.getElementById("intensity-value");
     const presetDescription = document.getElementById("preset-description");
@@ -314,15 +638,21 @@
     }
 
     function updatePresetDescription() {
-      const description = PRESET_DESCRIPTIONS[presetSelect.value] || "";
+      const preset = selectedPresetId();
+      const description = PRESET_DESCRIPTIONS[preset]
+        || "Automatic color, levels, and local contrast correction.";
       presetDescription.textContent = description;
-      intensitySlider.disabled = presetSelect.value === "";
+      intensitySlider.disabled = preset === "";
+    }
+
+    function selectedPresetId() {
+      return presetRadios.find((radio) => radio.checked)?.value || "";
     }
 
     function selectedFilterName() {
-      return presetSelect.value
-        ? presetSelect.options[presetSelect.selectedIndex].text
-        : "Auto-enhance only";
+      const selected = presetRadios.find((radio) => radio.checked);
+      return selected?.nextElementSibling.querySelector(".filter-name").textContent
+        || "Auto";
     }
 
     function updateResult(data) {
@@ -354,14 +684,18 @@
       afterImg.src = data.after;
       comparisonBeforeImg.src = data.before;
       comparisonAfterImg.src = data.after;
-      presetSelect.value = data.preset || "";
+      const restoredPreset = data.preset || "";
+      const restoredRadio = presetRadios.find((radio) => radio.value === restoredPreset);
+      if (restoredRadio) restoredRadio.checked = true;
       intensitySlider.value = data.intensity ?? 100;
       intensityValue.textContent = `${intensitySlider.value}%`;
       afterCaption.textContent = data.preset
-        ? `After — ${presetSelect.options[presetSelect.selectedIndex].text}`
+        ? `After — ${selectedFilterName()}`
         : "After";
       results.hidden = false;
+      editorShell.hidden = false;
       controls.disabled = false;
+      document.body.classList.add("has-results");
       comparisonRange.value = 50;
       updateComparisonPosition();
       updatePresetDescription();
@@ -442,7 +776,7 @@
       showError("");
 
       const token = ++applyRequestToken;
-      const preset = presetSelect.value;
+      const preset = selectedPresetId();
       const intensity = Number(intensitySlider.value);
       setStatus("Applying…");
       controls.setAttribute("aria-busy", "true");
@@ -460,7 +794,7 @@
         }
         afterImg.src = data.after;
         comparisonAfterImg.src = data.after;
-        afterCaption.textContent = preset ? `After — ${presetSelect.options[presetSelect.selectedIndex].text}` : "After";
+        afterCaption.textContent = preset ? `After — ${selectedFilterName()}` : "After";
         updateResult(data);
         setStatus("");
       } catch (err) {
@@ -523,9 +857,11 @@
     updateComparisonPosition();
     restoreSession();
 
-    presetSelect.addEventListener("change", () => {
-      updatePresetDescription();
-      applyFilter();
+    presetRadios.forEach((radio) => {
+      radio.addEventListener("change", () => {
+        updatePresetDescription();
+        applyFilter();
+      });
     });
 
     let intensityDebounce = null;

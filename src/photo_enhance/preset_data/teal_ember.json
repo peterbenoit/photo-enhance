@@ -1,0 +1,11 @@
+{
+  "name": "Teal & Ember",
+  "description": "Cool teal shadows meet warm amber highlights for a cinematic split",
+  "swatch": ["#176b70", "#e7783f"],
+  "curve": {
+    "r": [[0, 0], [64, 48], [128, 132], [192, 218], [255, 255]],
+    "g": [[0, 10], [64, 72], [128, 132], [192, 196], [255, 242]],
+    "b": [[0, 22], [64, 84], [128, 136], [192, 182], [255, 225]]
+  },
+  "saturation": 1.12
+}

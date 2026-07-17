@@ -2,6 +2,16 @@
 
 All notable changes to this project are logged here, newest first.
 
+## 2026-07-16 — Darkroom UI and four new looks
+
+- Reframed the web app as a focused local darkroom with a photograph-first
+  editor layout, compact upload state, richer result stage, responsive control
+  panel, and a clearer privacy signal.
+- Replaced the filter dropdown with keyboard-accessible visual swatches so the
+  available looks are browsable at a glance while preserving intensity control.
+- Added Golden Hour, Teal & Ember, Cross Process, and Soft Portrait presets,
+  bringing the built-in collection to eight looks.
+
 ## 2026-07-16 — Installed-wheel smoke coverage
 
 - Added an isolated packaging regression that builds the wheel, installs it

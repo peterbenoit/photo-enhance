@@ -1,0 +1,11 @@
+{
+  "name": "Soft Portrait",
+  "description": "Gentle contrast, creamy highlights, and restrained warmth for skin tones",
+  "swatch": ["#885f59", "#f1c9ae"],
+  "curve": {
+    "r": [[0, 14], [64, 75], [128, 140], [192, 207], [255, 248]],
+    "g": [[0, 12], [64, 70], [128, 134], [192, 201], [255, 245]],
+    "b": [[0, 14], [64, 66], [128, 124], [192, 190], [255, 238]]
+  },
+  "saturation": 0.92
+}

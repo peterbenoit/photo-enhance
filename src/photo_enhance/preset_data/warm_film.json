@@ -1,6 +1,7 @@
 {
   "name": "Warm Film",
   "description": "Warm highlights, gentle contrast, punchy but not harsh",
+  "swatch": ["#5e3023", "#efb267"],
   "curve": {
     "r": [[0, 10], [64, 80], [128, 145], [192, 205], [255, 250]],
     "g": [[0, 0], [128, 128], [255, 250]],

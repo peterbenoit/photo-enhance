@@ -1,0 +1,11 @@
+{
+  "name": "Golden Hour",
+  "description": "Honeyed highlights, open shadows, and a gentle sunlit glow",
+  "swatch": ["#8f3f27", "#ffd17a"],
+  "curve": {
+    "r": [[0, 12], [64, 78], [128, 150], [192, 218], [255, 255]],
+    "g": [[0, 6], [64, 68], [128, 138], [192, 205], [255, 248]],
+    "b": [[0, 4], [64, 55], [128, 112], [192, 172], [255, 225]]
+  },
+  "saturation": 1.08
+}

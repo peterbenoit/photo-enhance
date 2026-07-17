@@ -32,6 +32,7 @@ def list_preset_choices() -> list[dict]:
             "id": preset_id,
             "name": preset.get("name", preset_id),
             "description": preset.get("description", ""),
+            "swatch": preset.get("swatch", ["#34383d", "#aeb4b8"]),
         })
     return choices
 
