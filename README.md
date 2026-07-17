@@ -6,15 +6,17 @@ filter presets on top.
 
 Two ways to use it:
 
-- **Web UI** (recommended if you don't use the CLI often) — upload a photo once, then switch between filters and adjust intensity live, no re-upload needed. Runs entirely on `localhost`; nothing leaves the machine.
-- **CLI** — for batch-processing a folder of photos.
+- **Web UI** — upload a photo once, compare visual look previews, and adjust
+  intensity, warmth, fade, vignette, and grain without re-uploading. It runs
+  entirely on `localhost`; nothing leaves the machine.
+- **CLI** — enhance one photo or batch-process a folder.
 
 See [`photo-auto-enhance-spec.md`](photo-auto-enhance-spec.md) for the original design spec, [`PROJECT_REVIEW.md`](PROJECT_REVIEW.md) for the outstanding review backlog, and [`TASKS.md`](TASKS.md) / [`CHANGELOG.md`](CHANGELOG.md) for build progress.
 
 ## Requirements
 
-- macOS (Intel or Apple Silicon)
-- Python 3.12 (pinned via `.python-version`; installed automatically by `uv`)
+- macOS (Intel or Apple Silicon), the currently tested platform
+- Python 3.11 or newer; local development is pinned to 3.12 via `.python-version`
 - [`uv`](https://docs.astral.sh/uv/) — if you don't have it: `brew install uv`
 
 ## Setup
@@ -38,10 +40,9 @@ server and opens `http://127.0.0.1:5050` in your browser automatically.
 uv run photo-enhance-web
 ```
 
-Then open http://127.0.0.1:5050. Upload a photo once — switching the filter
-dropdown or dragging the intensity slider re-applies the filter against the
-already-uploaded image (no re-upload). The server keeps the last 20 uploaded
-sessions in memory; restarting the server clears them.
+Then open http://127.0.0.1:5050. Upload a photo once. Choosing a visual look or
+moving an adjustment slider reprocesses the already-uploaded image. The server
+keeps the last 20 uploaded sessions in memory; restarting it clears them.
 
 Optional vignette and film-grain controls are applied after the chosen filter.
 Warmth and matte-fade controls can also fine-tune the color temperature and
@@ -64,8 +65,8 @@ control with touch, pointer, or arrow keys, or switch to the side-by-side view.
 Preview images and downloads use short-lived, private in-memory URLs instead of
 being embedded as base64 inside JSON responses. The current opaque session ID is
 kept in the address bar, so refreshing restores the photo, chosen filter, and
-intensity while the server still holds that session. Results expire when evicted
-from the 20-session limit or when the server restarts.
+all adjustment settings while the server still holds that session. Results
+expire when evicted from the 20-session limit or when the server restarts.
 
 By default the Flask dev server runs with debug off. For local debugging,
 set `PHOTO_ENHANCE_DEBUG=1` before starting it.
@@ -146,15 +147,17 @@ photo-enhance/
 │   ├── web.py                 # Flask web UI entry point
 │   ├── templates/index.html   # web UI page
 │   ├── auto_levels.py         # white balance + levels + CLAHE
-│   ├── presets.py              # preset loading/application
-│   ├── imageio_utils.py        # PIL/OpenCV bridge + EXIF handling
-│   └── preset_data/*.json      # tone-curve preset definitions
+│   ├── finishing.py           # warmth, fade, vignette, and grain
+│   ├── presets.py             # preset loading/application
+│   ├── imageio_utils.py       # PIL/OpenCV bridge + EXIF handling
+│   └── preset_data/*.json     # tone-curve preset definitions
 ├── tests/
 └── examples/                  # drop before/after sample images here (gitignored)
 ```
 
-## Non-goals for MVP
+## Project boundaries
 
-No cloud/API calls, no user accounts, no ML model dependency. See the spec file
-for the full list and the stretch goals considered out of scope for now (RAW
-support, Real-ESRGAN hook, `.cube` LUT files).
+Photo Enhance stays local: no cloud processing, user accounts, or required ML
+model dependency. Larger optional capabilities—including RAW support,
+Real-ESRGAN integration, and `.cube` LUT files—remain tracked as possible future
+work in [TASKS.md](TASKS.md).
