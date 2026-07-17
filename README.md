@@ -43,6 +43,10 @@ dropdown or dragging the intensity slider re-applies the filter against the
 already-uploaded image (no re-upload). The server keeps the last 20 uploaded
 sessions in memory; restarting the server clears them.
 
+Optional vignette and film-grain controls are applied after the chosen filter.
+Their settings update the live preview and downloaded JPEG and are restored
+with the rest of the short-lived session state.
+
 Web previews are converted to 8-bit JPEG and do not contain source metadata.
 Transparent images and images above 8 bits per channel are rejected with an
 explanation instead of being silently flattened or down-converted. After

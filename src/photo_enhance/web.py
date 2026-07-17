@@ -24,6 +24,7 @@ from werkzeug.exceptions import RequestEntityTooLarge
 from werkzeug.utils import secure_filename
 
 from photo_enhance.auto_levels import auto_enhance
+from photo_enhance.finishing import apply_finishing
 from photo_enhance.imageio_utils import UnsupportedImageError, load_bgr_bytes
 from photo_enhance.presets import apply_preset_blended, list_preset_choices, load_preset
 
@@ -62,6 +63,9 @@ def _store_session(
             "details": details,
             "preset": None,
             "intensity": 100,
+            "vignette": 0,
+            "grain": 0,
+            "grain_seed": uuid.uuid4().int & 0xFFFFFFFF,
             "revision": 0,
         }
         _sessions.move_to_end(session_id)
@@ -126,6 +130,8 @@ def _session_payload(session_id: str, session: dict) -> dict:
         "details": session["details"],
         "preset": session["preset"],
         "intensity": session["intensity"],
+        "vignette": session["vignette"],
+        "grain": session["grain"],
         "revision": session["revision"],
     }
 
@@ -263,12 +269,16 @@ def apply():
     session = _get_session(session_id) if session_id else None
     if session is None:
         return jsonify(error="Session expired or not found. Please re-upload the photo."), 400
+    vignette = data.get("vignette", session["vignette"])
+    grain = data.get("grain", session["grain"])
 
     try:
         intensity_percent = max(0, min(100, int(intensity)))
+        vignette_percent = max(0, min(100, int(vignette)))
+        grain_percent = max(0, min(100, int(grain)))
         intensity_fraction = intensity_percent / 100.0
     except (TypeError, ValueError):
-        return jsonify(error="Invalid intensity value."), 400
+        return jsonify(error="Invalid adjustment value."), 400
     if requested_revision is not None:
         try:
             requested_revision = int(requested_revision)
@@ -293,10 +303,25 @@ def apply():
         result = enhanced
 
     try:
+        result = apply_finishing(
+            result,
+            vignette=vignette_percent / 100.0,
+            grain=grain_percent / 100.0,
+            grain_seed=session["grain_seed"],
+        )
+    except ValueError:
+        return jsonify(error="Could not apply finishing adjustments."), 422
+
+    try:
         result_jpeg = _bgr_to_jpeg_bytes(result)
     except (ValueError, cv2.error):
         return jsonify(error="Could not encode the filtered preview."), 500
     preset_suffix = f"_{preset_name}" if preset_name else ""
+    finish_suffix = ""
+    if vignette_percent:
+        finish_suffix += "_vignette"
+    if grain_percent:
+        finish_suffix += "_grain"
     height, width = result.shape[:2]
     details = {
         "width": width,
@@ -314,10 +339,14 @@ def apply():
         current.update(
             result_jpeg=result_jpeg,
             result_id=uuid.uuid4().hex,
-            download_name=f"{current['download_stem']}_enhanced{preset_suffix}.jpg",
+            download_name=(
+                f"{current['download_stem']}_enhanced{preset_suffix}{finish_suffix}.jpg"
+            ),
             details=details,
             preset=preset_name,
             intensity=intensity_percent,
+            vignette=vignette_percent,
+            grain=grain_percent,
             revision=requested_revision,
         )
         _sessions.move_to_end(session_id)

@@ -70,6 +70,8 @@ def test_index_has_progressive_dropzone_and_keyboard_comparison_controls():
     assert 'uploadDropzone.addEventListener("drop"' in text
     assert 'photoInput.addEventListener("change"' in text
     assert "Enhance photo" not in text
+    assert 'id="vignette-slider" min="0" max="100" value="0"' in text
+    assert 'id="grain-slider" min="0" max="100" value="0"' in text
     assert 'comparisonRange.addEventListener("input"' in text
     assert "async function restoreSession()" in text
     assert 'url.searchParams.set("session", id)' in text
@@ -145,6 +147,8 @@ def test_upload_returns_session_id_and_images():
     assert body["details"]["source_format"] == "JPEG"
     assert body["details"]["output_format"] == "JPEG preview"
     assert body["details"]["processing_ms"] >= 0
+    assert body["vignette"] == 0
+    assert body["grain"] == 0
 
 
 def test_upload_sanitizes_download_filename():
@@ -213,6 +217,32 @@ def test_apply_with_valid_session_and_preset_returns_image():
     assert body["details"]["source_format"] == "JPEG"
     assert body["details"]["width"] == 16
     assert body["details"]["height"] == 16
+
+
+def test_apply_with_finishing_controls_updates_result_and_filename():
+    client = app.test_client()
+    upload = client.post(
+        "/upload",
+        data={"photo": (io.BytesIO(_jpeg_bytes()), "photo.jpg")},
+        content_type="multipart/form-data",
+    ).get_json()
+
+    response = client.post(
+        "/apply",
+        json={
+            "session_id": upload["session_id"],
+            "preset": "golden_hour",
+            "intensity": 70,
+            "vignette": 40,
+            "grain": 25,
+        },
+    )
+
+    assert response.status_code == 200
+    body = response.get_json()
+    assert body["vignette"] == 40
+    assert body["grain"] == 25
+    assert body["download_name"] == "photo_enhanced_golden_hour_vignette_grain.jpg"
 
 
 def test_apply_with_unknown_preset_returns_400():
@@ -313,6 +343,8 @@ def test_session_state_restores_current_filter_and_intensity():
             "session_id": session_id,
             "preset": "warm_film",
             "intensity": 35,
+            "vignette": 45,
+            "grain": 20,
             "revision": 4,
         },
     )
@@ -324,6 +356,8 @@ def test_session_state_restores_current_filter_and_intensity():
     body = restored.get_json()
     assert body["preset"] == "warm_film"
     assert body["intensity"] == 35
+    assert body["vignette"] == 45
+    assert body["grain"] == 20
     assert body["revision"] == 4
     assert body["after"] == applied.get_json()["after"]
 

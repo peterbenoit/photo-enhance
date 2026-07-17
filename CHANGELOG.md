@@ -2,6 +2,16 @@
 
 All notable changes to this project are logged here, newest first.
 
+## 2026-07-17 — Vignette and film-grain finishing controls
+
+- Added optional 0–100% vignette and monochrome film-grain controls after the
+  selected creative look, with live preview, download, and refresh restoration.
+- Grain uses a stable per-session seed, so changing another adjustment does not
+  make the texture jump. Both effects process large images in bounded row
+  chunks instead of allocating full-resolution float masks or noise fields.
+- Download names disclose active finishing effects, and the taller control
+  panel scrolls independently on desktop while remaining inline on mobile.
+
 ## 2026-07-17 — Photo-based filter contact sheet
 
 - Filter swatches now fill with real, per-photo previews after upload or session
