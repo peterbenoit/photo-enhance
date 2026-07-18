@@ -26,6 +26,11 @@ def test_index_lists_all_presets():
     assert resp.status_code == 200
     text = resp.get_data(as_text=True)
     for name in (
+        "Bird Natural",
+        "Feather Detail",
+        "Backlit Bird",
+        "Woodland",
+        "Overcast",
         "Warm Film",
         "Cool Moody",
         "High Contrast B&amp;W",
@@ -72,6 +77,13 @@ def test_index_has_progressive_dropzone_and_keyboard_comparison_controls():
     assert "Enhance photo" not in text
     assert 'id="vignette-slider" min="0" max="100" value="0"' in text
     assert 'id="grain-slider" min="0" max="100" value="0"' in text
+    assert "Nature &amp; wildlife" in text
+    assert 'id="shadows-slider" min="0" max="100" value="0"' in text
+    assert 'id="highlights-slider" min="0" max="100" value="0"' in text
+    assert 'id="vibrance-slider" min="0" max="100" value="0"' in text
+    assert 'id="detail-slider" min="0" max="100" value="0"' in text
+    assert 'id="denoise-slider" min="0" max="100" value="0"' in text
+    assert "loadPresetDefaults(selectedPresetId())" in text
     assert 'comparisonRange.addEventListener("input"' in text
     assert "async function restoreSession()" in text
     assert 'url.searchParams.set("session", id)' in text
@@ -153,6 +165,11 @@ def test_upload_returns_session_id_and_images():
     assert body["fade"] == 0
     assert body["vignette"] == 0
     assert body["grain"] == 0
+    assert body["shadows"] == 0
+    assert body["highlights"] == 0
+    assert body["vibrance"] == 0
+    assert body["detail"] == 0
+    assert body["denoise"] == 0
 
 
 def test_upload_sanitizes_download_filename():
@@ -251,6 +268,41 @@ def test_apply_with_finishing_controls_updates_result_and_filename():
     assert body["vignette"] == 40
     assert body["grain"] == 25
     assert body["download_name"] == "photo_enhanced_golden_hour_warm_fade_vignette_grain.jpg"
+
+
+def test_apply_with_nature_preset_and_adjustments_updates_session():
+    client = app.test_client()
+    upload = client.post(
+        "/upload",
+        data={"photo": (io.BytesIO(_jpeg_bytes()), "bird.jpg")},
+        content_type="multipart/form-data",
+    ).get_json()
+
+    response = client.post(
+        "/apply",
+        json={
+            "session_id": upload["session_id"],
+            "preset": "bird_natural",
+            "intensity": 70,
+            "shadows": 12,
+            "highlights": 12,
+            "vibrance": 8,
+            "detail": 22,
+            "denoise": 8,
+        },
+    )
+
+    assert response.status_code == 200
+    body = response.get_json()
+    assert body["preset"] == "bird_natural"
+    assert body["shadows"] == 12
+    assert body["highlights"] == 12
+    assert body["vibrance"] == 8
+    assert body["detail"] == 22
+    assert body["denoise"] == 8
+    assert body["download_name"] == "bird_enhanced_bird_natural_nature.jpg"
+    restored = client.get(f"/sessions/{upload['session_id']}").get_json()
+    assert restored["detail"] == 22
 
 
 def test_apply_with_unknown_preset_returns_400():

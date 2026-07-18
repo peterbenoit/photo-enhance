@@ -1,0 +1,24 @@
+{
+  "name": "Woodland",
+  "description": "Keeps foliage believable while gently separating a bird from dense green surroundings",
+  "category": "nature",
+  "swatch": ["#1f4634", "#b5a773"],
+  "curve": {
+    "r": [[0, 2], [64, 66], [128, 132], [192, 198], [255, 252]],
+    "g": [[0, 0], [64, 63], [128, 126], [192, 190], [255, 249]],
+    "b": [[0, 3], [64, 65], [128, 128], [192, 190], [255, 246]]
+  },
+  "saturation": 0.98,
+  "defaults": {
+    "intensity": 65,
+    "shadows": 18,
+    "highlights": 12,
+    "vibrance": 5,
+    "detail": 20,
+    "denoise": 12,
+    "temperature": 3,
+    "fade": 0,
+    "vignette": 12,
+    "grain": 0
+  }
+}

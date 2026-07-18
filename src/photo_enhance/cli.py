@@ -8,7 +8,7 @@ from PIL import Image, UnidentifiedImageError
 
 from photo_enhance.auto_levels import auto_enhance
 from photo_enhance.imageio_utils import is_supported_image, load_bgr, save_bgr
-from photo_enhance.presets import apply_preset, list_presets, load_preset
+from photo_enhance.presets import apply_preset_with_defaults, list_presets, load_preset
 
 PROCESSING_ERRORS = (
     OSError,
@@ -39,7 +39,7 @@ def _process_one(
     img, metadata = load_bgr(input_path)
     result = auto_enhance(img)
     if preset is not None:
-        result = apply_preset(result, preset)
+        result = apply_preset_with_defaults(result, preset)
     save_bgr(output_path, result, metadata=None if strip_metadata else metadata, quality=quality)
 
 
@@ -48,7 +48,7 @@ def _process_one(
 @click.option("-o", "--output", "output", type=click.Path(path_type=Path), default=None,
               help="Output file (single mode) or output folder (--batch mode).")
 @click.option("--preset", "preset_name", type=click.Choice(list_presets()), default=None,
-              help=f"Optional creative preset. Available: {', '.join(list_presets())}")
+              help=f"Optional nature or creative preset. Available: {', '.join(list_presets())}")
 @click.option("--batch", is_flag=True, default=False, help="Treat input as a folder of photos.")
 @click.option("--overwrite", is_flag=True, default=False,
               help="Allow replacing source photos or existing output files.")

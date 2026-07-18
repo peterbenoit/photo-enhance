@@ -2,6 +2,20 @@
 
 All notable changes to this project are logged here, newest first.
 
+## 2026-07-18 — Bird and nature enhancement tools
+
+- Added Bird Natural, Feather Detail, Backlit Bird, Woodland, and Overcast
+  presets in a dedicated Nature & Wildlife group while retaining Auto and all
+  existing creative looks.
+- Added luminance-preserving shadow lift and highlight recovery, adaptive
+  vibrance, thresholded feather detail, and restrained noise reduction controls.
+- Nature preset selection loads tuned adjustment defaults; controls, downloads,
+  thumbnails, and refresh-restored sessions all reflect the selected values.
+- CLI nature presets apply the same authored defaults without adding an ML,
+  cloud, or package dependency.
+- Added processing, preset-metadata, UI, API, persistence, and CLI-compatible
+  regression coverage. The suite now has 103 tests.
+
 ## 2026-07-17 — Public repository license and usage warnings
 
 - Added the MIT license file promised by the package metadata.

@@ -1,14 +1,15 @@
 # Photo Auto-Enhance
 
 A local Python tool that auto-corrects photo levels/white balance/contrast using
-classical image processing (no ML model, no cloud calls), with optional creative
-filter presets on top.
+classical image processing (no ML model, no cloud calls), with optional nature
+and creative filter presets on top.
 
 Two ways to use it:
 
 - **Web UI** — upload a photo once, compare visual look previews, and adjust
-  intensity, warmth, fade, vignette, and grain without re-uploading. It runs
-  entirely on `localhost`; nothing leaves the machine.
+  intensity, wildlife lighting/detail controls, warmth, fade, vignette, and
+  grain without re-uploading. It runs entirely on `localhost`; nothing leaves
+  the machine.
 - **CLI** — enhance one photo or batch-process a folder.
 
 See [`photo-auto-enhance-spec.md`](photo-auto-enhance-spec.md) for the original
@@ -51,6 +52,12 @@ Warmth and matte-fade controls can also fine-tune the color temperature and
 black point. All finishing settings update the live preview and downloaded JPEG
 and are restored with the rest of the short-lived session state.
 
+The Nature & Wildlife group includes Bird Natural, Feather Detail, Backlit
+Bird, Woodland, and Overcast looks. Choosing one loads restrained defaults for
+shadow lift, highlight recovery, vibrance, feather detail, noise reduction, and
+finishing controls. Every value remains independently adjustable, and Auto plus
+the existing creative looks remain available unchanged.
+
 The result can also be downloaded as a labeled before/after comparison JPEG.
 Each panel is bounded to 2,400 pixels on its longest side so comparison exports
 remain practical even for very large source photos.
@@ -82,6 +89,9 @@ uv run photo-enhance path/to/photo.jpg
 # With a creative preset
 uv run photo-enhance path/to/photo.jpg --preset warm_film
 
+# With bird-oriented tonal and detail defaults
+uv run photo-enhance path/to/bird.jpg --preset bird_natural
+
 # Privacy-sensitive JPEG export: remove EXIF/GPS, ICC, and DPI; choose quality
 uv run photo-enhance path/to/photo.jpg --strip-metadata --quality 90
 
@@ -89,10 +99,12 @@ uv run photo-enhance path/to/photo.jpg --strip-metadata --quality 90
 uv run photo-enhance path/to/folder --batch -o path/to/output_folder
 ```
 
-Available presets: `warm_film`, `cool_moody`, `high_contrast_bw`,
-`faded_vintage`, `golden_hour`, `teal_ember`, `cross_process`, and
-`soft_portrait` (defined as JSON tone curves in
-`src/photo_enhance/preset_data/`).
+Nature presets: `bird_natural`, `feather_detail`, `backlit_bird`, `woodland`,
+and `overcast`. Creative presets: `warm_film`, `cool_moody`,
+`high_contrast_bw`, `faded_vintage`, `golden_hour`, `teal_ember`,
+`cross_process`, and `soft_portrait`. They are defined in
+`src/photo_enhance/preset_data/`; nature presets also bundle their intended
+lighting, color, detail, and denoise defaults.
 
 The CLI applies EXIF orientation to the pixels and removes the orientation tag
 so viewers cannot rotate the result twice. By default it preserves EXIF
@@ -149,6 +161,7 @@ photo-enhance/
 │   ├── web.py                 # Flask web UI entry point
 │   ├── templates/index.html   # web UI page
 │   ├── auto_levels.py         # white balance + levels + CLAHE
+│   ├── nature.py              # wildlife tone, vibrance, detail, and denoise controls
 │   ├── finishing.py           # warmth, fade, vignette, and grain
 │   ├── presets.py             # preset loading/application
 │   ├── imageio_utils.py       # PIL/OpenCV bridge + EXIF handling

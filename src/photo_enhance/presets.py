@@ -6,6 +6,9 @@ from importlib import resources
 import cv2
 import numpy as np
 
+from photo_enhance.finishing import apply_finishing
+from photo_enhance.nature import apply_nature_adjustments
+
 PRESETS_PACKAGE = "photo_enhance.preset_data"
 
 
@@ -33,6 +36,8 @@ def list_preset_choices() -> list[dict]:
             "name": preset.get("name", preset_id),
             "description": preset.get("description", ""),
             "swatch": preset.get("swatch", ["#34383d", "#aeb4b8"]),
+            "category": preset.get("category", "creative"),
+            "defaults": preset.get("defaults", {}),
         })
     return choices
 
@@ -75,3 +80,24 @@ def apply_preset_blended(img: np.ndarray, preset: dict, intensity: float) -> np.
     if intensity >= 1:
         return full
     return cv2.addWeighted(img, 1.0 - intensity, full, intensity, 0)
+
+
+def apply_preset_with_defaults(img: np.ndarray, preset: dict) -> np.ndarray:
+    """Apply a preset at its authored intensity plus any bundled adjustments."""
+    defaults = preset.get("defaults", {})
+    result = apply_preset_blended(img, preset, defaults.get("intensity", 100) / 100.0)
+    result = apply_nature_adjustments(
+        result,
+        shadows=defaults.get("shadows", 0) / 100.0,
+        highlights=defaults.get("highlights", 0) / 100.0,
+        vibrance=defaults.get("vibrance", 0) / 100.0,
+        detail=defaults.get("detail", 0) / 100.0,
+        denoise=defaults.get("denoise", 0) / 100.0,
+    )
+    return apply_finishing(
+        result,
+        temperature=defaults.get("temperature", 0) / 100.0,
+        fade=defaults.get("fade", 0) / 100.0,
+        vignette=defaults.get("vignette", 0) / 100.0,
+        grain=defaults.get("grain", 0) / 100.0,
+    )

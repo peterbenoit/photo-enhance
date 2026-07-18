@@ -1,0 +1,24 @@
+{
+  "name": "Backlit Bird",
+  "description": "Opens a shaded subject while holding bright sky and rim-lit feather detail",
+  "category": "nature",
+  "swatch": ["#29343e", "#efd59b"],
+  "curve": {
+    "r": [[0, 8], [48, 62], [128, 138], [208, 214], [255, 250]],
+    "g": [[0, 7], [48, 60], [128, 136], [208, 213], [255, 249]],
+    "b": [[0, 6], [48, 58], [128, 134], [208, 212], [255, 248]]
+  },
+  "saturation": 1.02,
+  "defaults": {
+    "intensity": 75,
+    "shadows": 42,
+    "highlights": 30,
+    "vibrance": 6,
+    "detail": 24,
+    "denoise": 12,
+    "temperature": 2,
+    "fade": 0,
+    "vignette": 8,
+    "grain": 0
+  }
+}

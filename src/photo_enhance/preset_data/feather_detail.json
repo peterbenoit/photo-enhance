@@ -1,0 +1,24 @@
+{
+  "name": "Feather Detail",
+  "description": "Crisper fine structure and midtone separation without harsh color or heavy contrast",
+  "category": "nature",
+  "swatch": ["#273942", "#d4d9c8"],
+  "curve": {
+    "r": [[0, 0], [48, 40], [128, 130], [208, 220], [255, 255]],
+    "g": [[0, 0], [48, 40], [128, 130], [208, 220], [255, 255]],
+    "b": [[0, 0], [48, 40], [128, 130], [208, 220], [255, 255]]
+  },
+  "saturation": 1.04,
+  "defaults": {
+    "intensity": 65,
+    "shadows": 8,
+    "highlights": 14,
+    "vibrance": 8,
+    "detail": 48,
+    "denoise": 12,
+    "temperature": 0,
+    "fade": 0,
+    "vignette": 10,
+    "grain": 0
+  }
+}

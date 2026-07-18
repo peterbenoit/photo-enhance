@@ -26,7 +26,13 @@ from werkzeug.utils import secure_filename
 from photo_enhance.auto_levels import auto_enhance
 from photo_enhance.finishing import apply_finishing
 from photo_enhance.imageio_utils import UnsupportedImageError, load_bgr_bytes
-from photo_enhance.presets import apply_preset_blended, list_preset_choices, load_preset
+from photo_enhance.nature import apply_nature_adjustments
+from photo_enhance.presets import (
+    apply_preset_blended,
+    apply_preset_with_defaults,
+    list_preset_choices,
+    load_preset,
+)
 
 app = Flask(__name__)
 
@@ -68,6 +74,11 @@ def _store_session(
             "fade": 0,
             "vignette": 0,
             "grain": 0,
+            "shadows": 0,
+            "highlights": 0,
+            "vibrance": 0,
+            "detail": 0,
+            "denoise": 0,
             "grain_seed": uuid.uuid4().int & 0xFFFFFFFF,
             "revision": 0,
         }
@@ -107,7 +118,8 @@ def _filter_thumbnail(enhanced: np.ndarray, preset_name: str | None) -> bytes:
         thumbnail = enhanced.copy()
 
     if preset_name:
-        thumbnail = apply_preset_blended(thumbnail, load_preset(preset_name), 1.0)
+        preset = load_preset(preset_name)
+        thumbnail = apply_preset_with_defaults(thumbnail, preset)
     return _bgr_to_jpeg_bytes(thumbnail)
 
 
@@ -189,6 +201,11 @@ def _session_payload(session_id: str, session: dict) -> dict:
         "fade": session["fade"],
         "vignette": session["vignette"],
         "grain": session["grain"],
+        "shadows": session["shadows"],
+        "highlights": session["highlights"],
+        "vibrance": session["vibrance"],
+        "detail": session["detail"],
+        "denoise": session["denoise"],
         "revision": session["revision"],
     }
 
@@ -200,7 +217,13 @@ def upload_too_large(_error):
 
 @app.route("/", methods=["GET"])
 def index():
-    return render_template("index.html", presets=list_preset_choices())
+    presets = list_preset_choices()
+    return render_template(
+        "index.html",
+        presets=presets,
+        nature_presets=[preset for preset in presets if preset["category"] == "nature"],
+        creative_presets=[preset for preset in presets if preset["category"] != "nature"],
+    )
 
 
 @app.route("/sessions/<session_id>", methods=["GET"])
@@ -354,6 +377,11 @@ def apply():
     fade = data.get("fade", session["fade"])
     vignette = data.get("vignette", session["vignette"])
     grain = data.get("grain", session["grain"])
+    shadows = data.get("shadows", session["shadows"])
+    highlights = data.get("highlights", session["highlights"])
+    vibrance = data.get("vibrance", session["vibrance"])
+    detail = data.get("detail", session["detail"])
+    denoise = data.get("denoise", session["denoise"])
 
     try:
         intensity_percent = max(0, min(100, int(intensity)))
@@ -361,6 +389,11 @@ def apply():
         fade_percent = max(0, min(100, int(fade)))
         vignette_percent = max(0, min(100, int(vignette)))
         grain_percent = max(0, min(100, int(grain)))
+        shadows_percent = max(0, min(100, int(shadows)))
+        highlights_percent = max(0, min(100, int(highlights)))
+        vibrance_percent = max(0, min(100, int(vibrance)))
+        detail_percent = max(0, min(100, int(detail)))
+        denoise_percent = max(0, min(100, int(denoise)))
         intensity_fraction = intensity_percent / 100.0
     except (TypeError, ValueError):
         return jsonify(error="Invalid adjustment value."), 400
@@ -386,6 +419,18 @@ def apply():
             return jsonify(error="Could not apply that filter."), 422
     else:
         result = enhanced
+
+    try:
+        result = apply_nature_adjustments(
+            result,
+            shadows=shadows_percent / 100.0,
+            highlights=highlights_percent / 100.0,
+            vibrance=vibrance_percent / 100.0,
+            detail=detail_percent / 100.0,
+            denoise=denoise_percent / 100.0,
+        )
+    except (ValueError, cv2.error):
+        return jsonify(error="Could not apply nature adjustments."), 422
 
     try:
         result = apply_finishing(
@@ -415,6 +460,8 @@ def apply():
         finish_suffix += "_vignette"
     if grain_percent:
         finish_suffix += "_grain"
+    if any((shadows_percent, highlights_percent, vibrance_percent, detail_percent, denoise_percent)):
+        finish_suffix += "_nature"
     height, width = result.shape[:2]
     details = {
         "width": width,
@@ -442,6 +489,11 @@ def apply():
             fade=fade_percent,
             vignette=vignette_percent,
             grain=grain_percent,
+            shadows=shadows_percent,
+            highlights=highlights_percent,
+            vibrance=vibrance_percent,
+            detail=detail_percent,
+            denoise=denoise_percent,
             revision=requested_revision,
         )
         _sessions.move_to_end(session_id)

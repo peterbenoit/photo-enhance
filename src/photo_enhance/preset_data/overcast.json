@@ -1,0 +1,24 @@
+{
+  "name": "Overcast",
+  "description": "Adds gentle warmth, color, and feather contrast to flat cool daylight",
+  "category": "nature",
+  "swatch": ["#536571", "#c9b77d"],
+  "curve": {
+    "r": [[0, 2], [64, 69], [128, 137], [192, 203], [255, 253]],
+    "g": [[0, 1], [64, 67], [128, 133], [192, 198], [255, 250]],
+    "b": [[0, 0], [64, 63], [128, 126], [192, 189], [255, 246]]
+  },
+  "saturation": 1.05,
+  "defaults": {
+    "intensity": 70,
+    "shadows": 16,
+    "highlights": 8,
+    "vibrance": 14,
+    "detail": 26,
+    "denoise": 8,
+    "temperature": 10,
+    "fade": 0,
+    "vignette": 8,
+    "grain": 0
+  }
+}

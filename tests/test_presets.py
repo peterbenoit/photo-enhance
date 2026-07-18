@@ -4,6 +4,7 @@ from photo_enhance.presets import (
     _curve_to_lut,
     apply_preset,
     apply_preset_blended,
+    apply_preset_with_defaults,
     list_preset_choices,
     list_presets,
     load_preset,
@@ -13,14 +14,19 @@ from photo_enhance.presets import (
 def test_list_presets_finds_all_shipped_presets():
     presets = list_presets()
     assert set(presets) == {
+        "backlit_bird",
+        "bird_natural",
         "cool_moody",
         "cross_process",
         "faded_vintage",
+        "feather_detail",
         "golden_hour",
         "high_contrast_bw",
+        "overcast",
         "soft_portrait",
         "teal_ember",
         "warm_film",
+        "woodland",
     }
 
 
@@ -49,19 +55,28 @@ def test_list_preset_choices_includes_display_name_and_description():
     choices = list_preset_choices()
     ids = {c["id"] for c in choices}
     assert ids == {
+        "backlit_bird",
+        "bird_natural",
         "cool_moody",
         "cross_process",
         "faded_vintage",
+        "feather_detail",
         "golden_hour",
         "high_contrast_bw",
+        "overcast",
         "soft_portrait",
         "teal_ember",
         "warm_film",
+        "woodland",
     }
     warm = next(c for c in choices if c["id"] == "warm_film")
     assert warm["name"] == "Warm Film"
     assert warm["description"]
     assert warm["swatch"] == ["#5e3023", "#efb267"]
+    assert warm["category"] == "creative"
+    bird = next(c for c in choices if c["id"] == "bird_natural")
+    assert bird["category"] == "nature"
+    assert bird["defaults"]["detail"] == 22
 
 
 def test_apply_preset_blended_zero_intensity_is_a_noop():
@@ -90,3 +105,14 @@ def test_apply_preset_blended_half_intensity_is_between_original_and_full():
     assert np.any(changed)
     assert np.all((half[changed] >= np.minimum(original[changed], full[changed])))
     assert np.all((half[changed] <= np.maximum(original[changed], full[changed])))
+
+
+def test_apply_preset_with_defaults_uses_nature_adjustments():
+    image = np.full((32, 32, 3), 128, dtype=np.uint8)
+    image[:, 16:] = 180
+    preset = load_preset("feather_detail")
+
+    with_defaults = apply_preset_with_defaults(image, preset)
+    tone_only = apply_preset_blended(image, preset, preset["defaults"]["intensity"] / 100)
+
+    assert not np.array_equal(with_defaults, tone_only)

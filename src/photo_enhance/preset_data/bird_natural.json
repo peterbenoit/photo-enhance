@@ -1,0 +1,24 @@
+{
+  "name": "Bird Natural",
+  "description": "Faithful plumage color, gently opened shadows, and restrained feather definition",
+  "category": "nature",
+  "swatch": ["#344b3b", "#b9c9a5"],
+  "curve": {
+    "r": [[0, 0], [48, 44], [128, 130], [208, 213], [255, 255]],
+    "g": [[0, 0], [48, 44], [128, 130], [208, 213], [255, 255]],
+    "b": [[0, 0], [48, 44], [128, 130], [208, 213], [255, 255]]
+  },
+  "saturation": 1.02,
+  "defaults": {
+    "intensity": 70,
+    "shadows": 12,
+    "highlights": 12,
+    "vibrance": 8,
+    "detail": 22,
+    "denoise": 8,
+    "temperature": 0,
+    "fade": 0,
+    "vignette": 8,
+    "grain": 0
+  }
+}

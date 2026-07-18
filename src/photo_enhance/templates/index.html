@@ -235,6 +235,16 @@
       grid-template-columns: 1fr 1fr;
       gap: 0.65rem;
     }
+    .filter-group-title {
+      grid-column: 1 / -1;
+      margin: 0.35rem 0 0;
+      color: var(--muted);
+      font-size: 0.68rem;
+      font-weight: 800;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+    .filter-group-title:not(:first-child) { margin-top: 0.8rem; }
     .filter-option { position: relative; min-width: 0; }
     .filter-radio {
       position: absolute;
@@ -297,7 +307,8 @@
       font-size: 0.78rem;
       font-weight: 700;
     }
-    #intensity-value, #temperature-value, #fade-value, #vignette-value, #grain-value {
+    #intensity-value, #temperature-value, #fade-value, #vignette-value, #grain-value,
+    #shadows-value, #highlights-value, #vibrance-value, #detail-value, #denoise-value {
       color: var(--text);
       font-variant-numeric: tabular-nums;
     }
@@ -556,6 +567,7 @@
       <fieldset class="controls-panel" id="controls" disabled>
         <legend>Choose a look</legend>
         <div class="filter-strip" id="filter-strip">
+          <h3 class="filter-group-title">Nature &amp; wildlife</h3>
           <div class="filter-option">
             <input class="filter-radio" type="radio" name="preset" id="preset-auto" value="" checked>
             <label class="filter-card" for="preset-auto">
@@ -565,7 +577,19 @@
               <span class="filter-name">Auto</span>
             </label>
           </div>
-          {% for preset in presets %}
+          {% for preset in nature_presets %}
+            <div class="filter-option">
+              <input class="filter-radio" type="radio" name="preset" id="preset-{{ preset.id }}" value="{{ preset.id }}">
+              <label class="filter-card" for="preset-{{ preset.id }}">
+                <span class="filter-swatch" style="--swatch-start: {{ preset.swatch[0] }}; --swatch-end: {{ preset.swatch[1] }}" aria-hidden="true">
+                  <img class="filter-preview" data-preset="{{ preset.id }}" alt="">
+                </span>
+                <span class="filter-name">{{ preset.name }}</span>
+              </label>
+            </div>
+          {% endfor %}
+          <h3 class="filter-group-title">Creative</h3>
+          {% for preset in creative_presets %}
             <div class="filter-option">
               <input class="filter-radio" type="radio" name="preset" id="preset-{{ preset.id }}" value="{{ preset.id }}">
               <label class="filter-card" for="preset-{{ preset.id }}">
@@ -581,6 +605,30 @@
           <label class="intensity-heading" for="intensity-slider">Intensity <span id="intensity-value">100%</span></label>
           <input class="control-slider" type="range" id="intensity-slider" min="0" max="100" value="100" disabled>
           <p id="preset-description">Automatic color, levels, and local contrast correction.</p>
+        </div>
+        <div class="finishing-controls" aria-labelledby="nature-heading">
+          <h3 id="nature-heading">Nature adjustments</h3>
+          <p class="finishing-note">Recover difficult light and bring out natural color and feather structure.</p>
+          <div class="finish-control">
+            <label class="intensity-heading" for="shadows-slider">Shadows <span id="shadows-value">0%</span></label>
+            <input class="control-slider" type="range" id="shadows-slider" min="0" max="100" value="0">
+          </div>
+          <div class="finish-control">
+            <label class="intensity-heading" for="highlights-slider">Highlight recovery <span id="highlights-value">0%</span></label>
+            <input class="control-slider" type="range" id="highlights-slider" min="0" max="100" value="0">
+          </div>
+          <div class="finish-control">
+            <label class="intensity-heading" for="vibrance-slider">Vibrance <span id="vibrance-value">0%</span></label>
+            <input class="control-slider" type="range" id="vibrance-slider" min="0" max="100" value="0">
+          </div>
+          <div class="finish-control">
+            <label class="intensity-heading" for="detail-slider">Feather detail <span id="detail-value">0%</span></label>
+            <input class="control-slider" type="range" id="detail-slider" min="0" max="100" value="0">
+          </div>
+          <div class="finish-control">
+            <label class="intensity-heading" for="denoise-slider">Noise reduction <span id="denoise-value">0%</span></label>
+            <input class="control-slider" type="range" id="denoise-slider" min="0" max="100" value="0">
+          </div>
         </div>
         <div class="finishing-controls" aria-labelledby="finishing-heading">
           <h3 id="finishing-heading">Finishing touches</h3>
@@ -658,6 +706,9 @@
     const PRESET_DESCRIPTIONS = {
       {% for preset in presets %}"{{ preset.id }}": {{ preset.description|tojson }},{% endfor %}
     };
+    const PRESET_DEFAULTS = {
+      {% for preset in presets %}"{{ preset.id }}": {{ preset.defaults|tojson }},{% endfor %}
+    };
 
     const uploadForm = document.getElementById("upload-form");
     const uploadDropzone = document.getElementById("upload-dropzone");
@@ -677,6 +728,16 @@
     const vignetteValue = document.getElementById("vignette-value");
     const grainSlider = document.getElementById("grain-slider");
     const grainValue = document.getElementById("grain-value");
+    const shadowsSlider = document.getElementById("shadows-slider");
+    const shadowsValue = document.getElementById("shadows-value");
+    const highlightsSlider = document.getElementById("highlights-slider");
+    const highlightsValue = document.getElementById("highlights-value");
+    const vibranceSlider = document.getElementById("vibrance-slider");
+    const vibranceValue = document.getElementById("vibrance-value");
+    const detailSlider = document.getElementById("detail-slider");
+    const detailValue = document.getElementById("detail-value");
+    const denoiseSlider = document.getElementById("denoise-slider");
+    const denoiseValue = document.getElementById("denoise-value");
     const presetDescription = document.getElementById("preset-description");
     const errorMessage = document.getElementById("error-message");
     const statusMessage = document.getElementById("status-message");
@@ -741,7 +802,49 @@
       if (Number(fadeSlider.value) > 0) finishers.push("Fade");
       if (Number(vignetteSlider.value) > 0) finishers.push("Vignette");
       if (Number(grainSlider.value) > 0) finishers.push("Grain");
+      if ([shadowsSlider, highlightsSlider, vibranceSlider, detailSlider, denoiseSlider]
+        .some((slider) => Number(slider.value) > 0)) finishers.push("Nature tuned");
       return [selectedFilterName(), ...finishers].join(" + ");
+    }
+
+    function updateAdjustmentLabels() {
+      intensityValue.textContent = `${intensitySlider.value}%`;
+      updateTemperatureValue();
+      fadeValue.textContent = `${fadeSlider.value}%`;
+      vignetteValue.textContent = `${vignetteSlider.value}%`;
+      grainValue.textContent = `${grainSlider.value}%`;
+      shadowsValue.textContent = `${shadowsSlider.value}%`;
+      highlightsValue.textContent = `${highlightsSlider.value}%`;
+      vibranceValue.textContent = `${vibranceSlider.value}%`;
+      detailValue.textContent = `${detailSlider.value}%`;
+      denoiseValue.textContent = `${denoiseSlider.value}%`;
+    }
+
+    function loadPresetDefaults(preset) {
+      const defaults = PRESET_DEFAULTS[preset] || {};
+      const values = {
+        intensity: defaults.intensity ?? 100,
+        temperature: defaults.temperature ?? 0,
+        fade: defaults.fade ?? 0,
+        vignette: defaults.vignette ?? 0,
+        grain: defaults.grain ?? 0,
+        shadows: defaults.shadows ?? 0,
+        highlights: defaults.highlights ?? 0,
+        vibrance: defaults.vibrance ?? 0,
+        detail: defaults.detail ?? 0,
+        denoise: defaults.denoise ?? 0,
+      };
+      intensitySlider.value = values.intensity;
+      temperatureSlider.value = values.temperature;
+      fadeSlider.value = values.fade;
+      vignetteSlider.value = values.vignette;
+      grainSlider.value = values.grain;
+      shadowsSlider.value = values.shadows;
+      highlightsSlider.value = values.highlights;
+      vibranceSlider.value = values.vibrance;
+      detailSlider.value = values.detail;
+      denoiseSlider.value = values.denoise;
+      updateAdjustmentLabels();
     }
 
     function updateResult(data) {
@@ -796,7 +899,12 @@
       vignetteSlider.value = data.vignette ?? 0;
       vignetteValue.textContent = `${vignetteSlider.value}%`;
       grainSlider.value = data.grain ?? 0;
-      grainValue.textContent = `${grainSlider.value}%`;
+      shadowsSlider.value = data.shadows ?? 0;
+      highlightsSlider.value = data.highlights ?? 0;
+      vibranceSlider.value = data.vibrance ?? 0;
+      detailSlider.value = data.detail ?? 0;
+      denoiseSlider.value = data.denoise ?? 0;
+      updateAdjustmentLabels();
       afterCaption.textContent = activeLookName() === "Auto"
         ? "After"
         : `After — ${activeLookName()}`;
@@ -903,6 +1011,11 @@
       const fade = Number(fadeSlider.value);
       const vignette = Number(vignetteSlider.value);
       const grain = Number(grainSlider.value);
+      const shadows = Number(shadowsSlider.value);
+      const highlights = Number(highlightsSlider.value);
+      const vibrance = Number(vibranceSlider.value);
+      const detail = Number(detailSlider.value);
+      const denoise = Number(denoiseSlider.value);
       setStatus("Applying…");
       controls.setAttribute("aria-busy", "true");
 
@@ -918,6 +1031,11 @@
             fade,
             vignette,
             grain,
+            shadows,
+            highlights,
+            vibrance,
+            detail,
+            denoise,
             revision: token,
           }),
         });
@@ -994,6 +1112,7 @@
 
     presetRadios.forEach((radio) => {
       radio.addEventListener("change", () => {
+        loadPresetDefaults(selectedPresetId());
         updatePresetDescription();
         applyFilter();
       });
@@ -1028,6 +1147,19 @@
     grainSlider.addEventListener("input", () => {
       grainValue.textContent = `${grainSlider.value}%`;
       scheduleAdjustment();
+    });
+
+    [
+      [shadowsSlider, shadowsValue],
+      [highlightsSlider, highlightsValue],
+      [vibranceSlider, vibranceValue],
+      [detailSlider, detailValue],
+      [denoiseSlider, denoiseValue],
+    ].forEach(([slider, output]) => {
+      slider.addEventListener("input", () => {
+        output.textContent = `${slider.value}%`;
+        scheduleAdjustment();
+      });
     });
   </script>
 </body>
