@@ -147,6 +147,18 @@ def test_individual_auto_stages_can_be_disabled(tmp_path, monkeypatch):
     assert received["local_contrast"] is False
 
 
+def test_verbose_logging_reports_the_measured_recipe(tmp_path):
+    photo = tmp_path / "photo.jpg"
+    _write_test_image(photo)
+
+    result = CliRunner().invoke(main, [str(photo), "--verbose"])
+
+    assert result.exit_code == 0
+    assert "INFO recipe input=" in result.output
+    assert "auto_white_balance=" in result.output
+    assert "color_cast=" in result.output
+
+
 def test_missing_input_path_is_rejected_by_click(tmp_path):
     missing = tmp_path / "missing.jpg"
 
@@ -408,7 +420,7 @@ def test_unknown_preset_is_rejected_by_click(tmp_path):
     result = CliRunner().invoke(main, [str(photo), "--preset", "not-real"])
 
     assert result.exit_code != 0
-    assert "invalid value for '--preset'" in result.output.lower()
+    assert "invalid value for --preset" in result.output.lower()
 
 
 def test_strip_metadata_removes_exif(tmp_path):

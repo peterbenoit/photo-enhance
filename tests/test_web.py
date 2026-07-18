@@ -209,9 +209,9 @@ def test_upload_enhancement_failure_returns_friendly_error(monkeypatch):
     from photo_enhance import web
 
     def fail_enhancement(_image, **_kwargs):
-        raise ValueError("simulated pipeline failure")
+        raise web.EnhancementError("auto", ValueError("simulated pipeline failure"))
 
-    monkeypatch.setattr(web, "auto_enhance", fail_enhancement)
+    monkeypatch.setattr(web, "enhance_image", fail_enhancement)
     client = app.test_client()
     resp = client.post(
         "/upload",
@@ -243,7 +243,9 @@ def test_upload_encoding_failure_returns_friendly_error(monkeypatch):
 
 def test_apply_without_prior_upload_returns_400():
     client = app.test_client()
-    resp = client.post("/apply", json={"session_id": "does-not-exist", "preset": "warm_film", "intensity": 100})
+    resp = client.post(
+        "/apply", json={"session_id": "does-not-exist", "preset": "warm_film", "intensity": 100}
+    )
     assert resp.status_code == 400
     assert "error" in resp.get_json()
 
@@ -254,7 +256,9 @@ def test_apply_with_valid_session_and_preset_returns_image():
     upload_resp = client.post("/upload", data=data, content_type="multipart/form-data")
     session_id = upload_resp.get_json()["session_id"]
 
-    resp = client.post("/apply", json={"session_id": session_id, "preset": "warm_film", "intensity": 50})
+    resp = client.post(
+        "/apply", json={"session_id": session_id, "preset": "warm_film", "intensity": 50}
+    )
     assert resp.status_code == 200
     body = resp.get_json()
     assert body["after"].startswith(f"/sessions/{session_id}/images/result?v=")
@@ -335,7 +339,9 @@ def test_apply_with_unknown_preset_returns_400():
     upload_resp = client.post("/upload", data=data, content_type="multipart/form-data")
     session_id = upload_resp.get_json()["session_id"]
 
-    resp = client.post("/apply", json={"session_id": session_id, "preset": "not_a_real_preset", "intensity": 100})
+    resp = client.post(
+        "/apply", json={"session_id": session_id, "preset": "not_a_real_preset", "intensity": 100}
+    )
     assert resp.status_code == 400
     assert "error" in resp.get_json()
 
@@ -379,7 +385,9 @@ def test_zeroed_auto_recipe_renders_from_source_pixels():
     assert body["auto_white_balance"] == 0
     assert body["auto_levels"] == 0
     assert body["auto_local_contrast"] == 0
-    before = cv2.imdecode(np.frombuffer(client.get(upload["before"]).data, np.uint8), cv2.IMREAD_COLOR)
+    before = cv2.imdecode(
+        np.frombuffer(client.get(upload["before"]).data, np.uint8), cv2.IMREAD_COLOR
+    )
     after = cv2.imdecode(np.frombuffer(client.get(body["after"]).data, np.uint8), cv2.IMREAD_COLOR)
     assert np.abs(before.astype(int) - after.astype(int)).mean() < 1
 

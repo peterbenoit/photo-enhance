@@ -1,10 +1,10 @@
 """Pillow/OpenCV bridging with explicit fidelity and metadata behavior."""
 
-from dataclasses import dataclass
 import io
 import os
-from pathlib import Path
 import tempfile
+from dataclasses import dataclass
+from pathlib import Path
 from typing import BinaryIO
 
 import cv2
@@ -43,7 +43,7 @@ def _is_high_bit_depth(image: Image.Image) -> bool:
     if bits_per_sample is None:
         # Pillow exposes 16-bit RGB PNGs as mode=RGB; the decoder raw mode is
         # the only place the source depth remains visible before loading.
-        for tile in image.tile:
+        for tile in getattr(image, "tile", ()):
             raw_mode = tile.args[0] if isinstance(tile.args, tuple) else tile.args
             if isinstance(raw_mode, str) and ";16" in raw_mode:
                 return True

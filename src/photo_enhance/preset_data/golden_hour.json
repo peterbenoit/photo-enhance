@@ -1,4 +1,5 @@
 {
+  "schema_version": 1,
   "name": "Golden Hour",
   "description": "Honeyed highlights, open shadows, and a gentle sunlit glow",
   "swatch": ["#8f3f27", "#ffd17a"],

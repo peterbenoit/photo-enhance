@@ -1,4 +1,5 @@
 {
+  "schema_version": 1,
   "name": "Warm Film",
   "description": "Warm highlights, gentle contrast, punchy but not harsh",
   "swatch": ["#5e3023", "#efb267"],

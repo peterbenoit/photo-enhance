@@ -1,4 +1,5 @@
 {
+  "schema_version": 1,
   "name": "Soft Portrait",
   "description": "Gentle contrast, creamy highlights, and restrained warmth for skin tones",
   "swatch": ["#885f59", "#f1c9ae"],

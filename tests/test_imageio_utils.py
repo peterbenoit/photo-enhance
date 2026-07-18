@@ -5,7 +5,6 @@ import pytest
 from PIL import Image, ImageCms
 
 from photo_enhance.imageio_utils import (
-    ImageMetadata,
     UnsupportedImageError,
     load_bgr,
     save_bgr,
@@ -154,9 +153,6 @@ def test_quality_is_only_valid_for_lossy_output(tmp_path):
 def test_metadata_can_be_omitted_explicitly(tmp_path):
     output = tmp_path / "photo.jpg"
     image = np.full((8, 8, 3), 120, dtype=np.uint8)
-    exif = Image.Exif()
-    exif[315] = "Test Artist"
-    metadata = ImageMetadata(exif=exif.tobytes(), icc_profile=_srgb_profile(), dpi=(144, 144))
 
     save_bgr(output, image, metadata=None)
 

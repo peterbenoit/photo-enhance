@@ -4,7 +4,21 @@ version = "0.1.0"
 description = "Local classical-CV photo auto-enhancer with creative filter presets"
 readme = "README.md"
 requires-python = ">=3.11"
-license = { text = "MIT" }
+license = "MIT"
+authors = [{ name = "Peter Benoit" }]
+keywords = ["photo", "image-processing", "opencv", "pillow", "local-first"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Framework :: Flask",
+    "Intended Audience :: End Users/Desktop",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: MacOS",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Multimedia :: Graphics",
+]
 dependencies = [
     "opencv-python>=4.10",
     "pillow>=10.4",
@@ -15,11 +29,23 @@ dependencies = [
 web = ["flask>=3.0"]
 
 [dependency-groups]
-dev = ["pytest>=8.0", "flask>=3.0"]
+dev = [
+    "flask>=3.0",
+    "mypy>=1.17",
+    "pip-audit>=2.9",
+    "pytest>=8.0",
+    "pytest-cov>=6.2",
+    "ruff>=0.12",
+]
 
 [project.scripts]
 photo-enhance = "photo_enhance.cli:main"
-photo-enhance-web = "photo_enhance.web:main"
+photo-enhance-web = "photo_enhance.web_entry:main"
+
+[project.urls]
+Homepage = "https://github.com/peterbenoit/photo-enhance"
+Repository = "https://github.com/peterbenoit/photo-enhance"
+Issues = "https://github.com/peterbenoit/photo-enhance/issues"
 
 [build-system]
 requires = ["hatchling"]
@@ -27,3 +53,43 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/photo_enhance"]
+
+[tool.hatch.build]
+exclude = [
+    "/.claude",
+    "/.vscode",
+    "/.agents",
+    "/.codex",
+]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.mypy]
+python_version = "3.12"
+files = ["src/photo_enhance"]
+check_untyped_defs = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ["cv2", "cv2.*", "numpy", "numpy.*"]
+follow_imports = "skip"
+
+[tool.pytest.ini_options]
+addopts = "--strict-markers"
+
+[tool.coverage.run]
+branch = true
+source = ["photo_enhance"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
+fail_under = 80

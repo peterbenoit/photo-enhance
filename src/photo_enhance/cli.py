@@ -1,22 +1,17 @@
 """CLI entry point: enhance <input> [-o output] [--preset name] [--batch]"""
 
 import json
+import logging
 from pathlib import Path
 
 import click
 import cv2
 from PIL import Image, UnidentifiedImageError
 
-from photo_enhance.auto_levels import AutoSettings, analyze_auto, auto_enhance
 from photo_enhance.imageio_utils import is_supported_image, load_bgr, save_bgr
-from photo_enhance.nature import NatureSettings, analyze_nature, apply_nature_adjustments
-from photo_enhance.presets import (
-    apply_preset,
-    apply_preset_with_defaults,
-    list_presets,
-    list_preset_choices,
-    load_preset,
-)
+from photo_enhance.nature import NatureSettings
+from photo_enhance.pipeline import EnhancementError, EnhancementOptions, enhance_image
+from photo_enhance.presets import Preset, list_preset_choices, list_presets, load_preset
 
 PROCESSING_ERRORS = (
     OSError,
@@ -24,6 +19,7 @@ PROCESSING_ERRORS = (
     cv2.error,
     UnidentifiedImageError,
     Image.DecompressionBombError,
+    EnhancementError,
 )
 
 OUTPUT_FORMAT_SUFFIXES = {
@@ -35,37 +31,19 @@ OUTPUT_FORMAT_SUFFIXES = {
 }
 
 MODE_STRENGTHS = {"gentle": 0.65, "standard": 1.0, "strong": 1.25}
+LOGGER = logging.getLogger("photo_enhance")
 
 
-def _bounded_scale(value: float, scale: float) -> float:
-    return min(1.0, max(0.0, value * scale))
-
-
-def _auto_settings_for_cli(
-    settings: AutoSettings,
-    *,
-    mode: str,
-    white_balance: bool,
-    levels: bool,
-    local_contrast: bool,
-) -> AutoSettings:
-    scale = MODE_STRENGTHS[mode]
-    return AutoSettings(
-        white_balance=_bounded_scale(settings.white_balance, scale) if white_balance else 0.0,
-        levels=_bounded_scale(settings.levels, scale) if levels else 0.0,
-        local_contrast=_bounded_scale(settings.local_contrast, scale) if local_contrast else 0.0,
-    )
-
-
-def _nature_settings_for_cli(settings: NatureSettings, *, mode: str) -> NatureSettings:
-    scale = MODE_STRENGTHS[mode]
-    return NatureSettings(
-        shadows=_bounded_scale(settings.shadows, scale),
-        highlights=_bounded_scale(settings.highlights, scale),
-        vibrance=_bounded_scale(settings.vibrance, scale),
-        detail=_bounded_scale(settings.detail, scale),
-        denoise=_bounded_scale(settings.denoise, scale),
-    )
+def _configure_logging(verbose: bool) -> None:
+    LOGGER.handlers.clear()
+    if not verbose:
+        LOGGER.addHandler(logging.NullHandler())
+        LOGGER.setLevel(logging.WARNING)
+        return
+    handler = logging.StreamHandler()
+    handler.setFormatter(logging.Formatter("%(levelname)s %(message)s"))
+    LOGGER.addHandler(handler)
+    LOGGER.setLevel(logging.INFO)
 
 
 def _output_path(
@@ -86,9 +64,9 @@ def _output_path(
     return result.with_suffix(OUTPUT_FORMAT_SUFFIXES[output_format]) if output_format else result
 
 
-def _print_presets() -> None:
+def _print_presets(preset_dir: Path | None = None) -> None:
     """Print stable preset IDs alongside the names and descriptions people see in the UI."""
-    for preset in list_preset_choices():
+    for preset in list_preset_choices(preset_dir):
         click.echo(f"{preset['id']}: {preset['name']}")
         if preset["description"]:
             click.echo(f"  {preset['description']}")
@@ -109,7 +87,7 @@ def _emit_json(payload: dict) -> None:
 def _process_one(
     input_path: Path,
     output_path: Path,
-    preset: dict | None,
+    preset: Preset | None,
     *,
     strip_metadata: bool = False,
     quality: int | None = None,
@@ -119,69 +97,163 @@ def _process_one(
     local_contrast: bool = True,
 ) -> None:
     img, metadata = load_bgr(input_path)
-    auto_analysis = analyze_auto(img)
-    auto_settings = _auto_settings_for_cli(
-        auto_analysis.settings,
-        mode=mode,
+    defaults = preset.get("defaults", {}) if preset is not None else {}
+    nature_settings = None
+    if defaults:
+        nature_settings = NatureSettings(
+            shadows=defaults.get("shadows", 0) / 100.0,
+            highlights=defaults.get("highlights", 0) / 100.0,
+            vibrance=defaults.get("vibrance", 0) / 100.0,
+            detail=defaults.get("detail", 0) / 100.0,
+            denoise=defaults.get("denoise", 0) / 100.0,
+        )
+    options = EnhancementOptions(
+        preset=preset,
+        preset_intensity=defaults.get("intensity", 100) / 100.0,
+        auto_scale=MODE_STRENGTHS[mode],
+        nature_scale=1.0 if defaults else MODE_STRENGTHS[mode],
+        nature_settings=nature_settings,
         white_balance=white_balance,
         levels=levels,
         local_contrast=local_contrast,
+        temperature=defaults.get("temperature", 0) / 100.0,
+        fade=defaults.get("fade", 0) / 100.0,
+        vignette=defaults.get("vignette", 0) / 100.0,
+        grain=defaults.get("grain", 0) / 100.0,
     )
-    base = auto_enhance(img, settings=auto_settings)
-    nature = _nature_settings_for_cli(analyze_nature(base), mode=mode)
-    if preset is not None and preset.get("defaults"):
-        # Nature presets intentionally replace Auto's nature-stage recommendations.
-        result = apply_preset_with_defaults(base, preset)
-    else:
-        result = apply_preset(base, preset) if preset is not None else base
-        result = apply_nature_adjustments(
-            result,
-            shadows=nature.shadows,
-            highlights=nature.highlights,
-            vibrance=nature.vibrance,
-            detail=nature.detail,
-            denoise=nature.denoise,
-        )
-    save_bgr(output_path, result, metadata=None if strip_metadata else metadata, quality=quality)
+    result = enhance_image(img, options)
+    LOGGER.info(
+        "recipe input=%s auto_white_balance=%.2f auto_levels=%.2f "
+        "auto_local_contrast=%.2f shadows=%.2f highlights=%.2f vibrance=%.2f "
+        "detail=%.2f denoise=%.2f color_cast=%.4f neutral_fraction=%.4f",
+        input_path,
+        result.auto_settings.white_balance,
+        result.auto_settings.levels,
+        result.auto_settings.local_contrast,
+        result.nature_settings.shadows,
+        result.nature_settings.highlights,
+        result.nature_settings.vibrance,
+        result.nature_settings.detail,
+        result.nature_settings.denoise,
+        result.auto_analysis.metrics.color_cast,
+        result.auto_analysis.metrics.neutral_fraction,
+    )
+    save_bgr(
+        output_path,
+        result.image,
+        metadata=None if strip_metadata else metadata,
+        quality=quality,
+    )
 
 
 @click.command()
+@click.version_option(package_name="photo-enhance")
 @click.argument("input_path", type=click.Path(exists=True, path_type=Path), required=False)
-@click.option("-o", "--output", "output", type=click.Path(path_type=Path), default=None,
-              help="Output file (single mode) or output folder (--batch mode).")
-@click.option("--preset", "preset_name", type=click.Choice(list_presets()), default=None,
-              help=f"Optional nature or creative preset. Available: {', '.join(list_presets())}")
+@click.option(
+    "-o",
+    "--output",
+    "output",
+    type=click.Path(path_type=Path),
+    default=None,
+    help="Output file (single mode) or output folder (--batch mode).",
+)
+@click.option(
+    "--preset",
+    "preset_name",
+    type=str,
+    default=None,
+    help=f"Optional nature or creative preset. Available: {', '.join(list_presets())}",
+)
+@click.option(
+    "--preset-dir",
+    type=click.Path(exists=True, file_okay=False, path_type=Path),
+    default=None,
+    help="Load validated JSON presets from this folder before built-ins.",
+)
 @click.option("--batch", is_flag=True, default=False, help="Treat input as a folder of photos.")
-@click.option("--recursive", is_flag=True, default=False,
-              help="Include nested folders in batch mode and preserve their relative paths.")
-@click.option("--overwrite", is_flag=True, default=False,
-              help="Allow replacing source photos or existing output files.")
-@click.option("--strip-metadata", is_flag=True, default=False,
-              help="Legacy shorthand for --metadata strip.")
-@click.option("--metadata", type=click.Choice(("preserve", "strip")), default="preserve",
-              show_default=True, help="Preserve supported metadata or strip it from output.")
-@click.option("--quality", type=click.IntRange(1, 100), default=None, metavar="1-100",
-              help="JPEG/WebP output quality (defaults: JPEG 92, WebP 90).")
-@click.option("--format", "output_format", type=click.Choice(tuple(OUTPUT_FORMAT_SUFFIXES)),
-              default=None, help="Force the output format and filename extension.")
-@click.option("--mode", type=click.Choice(tuple(MODE_STRENGTHS)), default="standard",
-              show_default=True, help="Set the overall strength of automatic corrections.")
-@click.option("--white-balance/--no-white-balance", default=True,
-              help="Enable or disable Auto white balance.")
-@click.option("--levels/--no-levels", default=True,
-              help="Enable or disable Auto levels.")
-@click.option("--local-contrast/--no-local-contrast", default=True,
-              help="Enable or disable Auto local contrast.")
-@click.option("--list-presets", "list_presets_requested", is_flag=True, default=False,
-              help="List preset IDs, display names, and descriptions, then exit.")
-@click.option("--dry-run", is_flag=True, default=False,
-              help="Show selected input and output paths without reading or writing photos.")
-@click.option("--json-summary", is_flag=True, default=False,
-              help="Emit one machine-readable JSON result instead of normal status lines.")
+@click.option(
+    "--recursive",
+    is_flag=True,
+    default=False,
+    help="Include nested folders in batch mode and preserve their relative paths.",
+)
+@click.option(
+    "--overwrite",
+    is_flag=True,
+    default=False,
+    help="Allow replacing source photos or existing output files.",
+)
+@click.option(
+    "--strip-metadata", is_flag=True, default=False, help="Legacy shorthand for --metadata strip."
+)
+@click.option(
+    "--metadata",
+    type=click.Choice(("preserve", "strip")),
+    default="preserve",
+    show_default=True,
+    help="Preserve supported metadata or strip it from output.",
+)
+@click.option(
+    "--quality",
+    type=click.IntRange(1, 100),
+    default=None,
+    metavar="1-100",
+    help="JPEG/WebP output quality (defaults: JPEG 92, WebP 90).",
+)
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(tuple(OUTPUT_FORMAT_SUFFIXES)),
+    default=None,
+    help="Force the output format and filename extension.",
+)
+@click.option(
+    "--mode",
+    type=click.Choice(tuple(MODE_STRENGTHS)),
+    default="standard",
+    show_default=True,
+    help="Set the overall strength of automatic corrections.",
+)
+@click.option(
+    "--white-balance/--no-white-balance", default=True, help="Enable or disable Auto white balance."
+)
+@click.option("--levels/--no-levels", default=True, help="Enable or disable Auto levels.")
+@click.option(
+    "--local-contrast/--no-local-contrast",
+    default=True,
+    help="Enable or disable Auto local contrast.",
+)
+@click.option(
+    "--list-presets",
+    "list_presets_requested",
+    is_flag=True,
+    default=False,
+    help="List preset IDs, display names, and descriptions, then exit.",
+)
+@click.option(
+    "--dry-run",
+    is_flag=True,
+    default=False,
+    help="Show selected input and output paths without reading or writing photos.",
+)
+@click.option(
+    "--json-summary",
+    is_flag=True,
+    default=False,
+    help="Emit one machine-readable JSON result instead of normal status lines.",
+)
+@click.option(
+    "-v",
+    "--verbose",
+    is_flag=True,
+    default=False,
+    help="Log the measured recipe and correction strengths for each photo.",
+)
 def main(
     input_path: Path | None,
     output: Path | None,
     preset_name: str | None,
+    preset_dir: Path | None,
     batch: bool,
     recursive: bool,
     overwrite: bool,
@@ -196,10 +268,15 @@ def main(
     list_presets_requested: bool,
     dry_run: bool,
     json_summary: bool,
+    verbose: bool,
 ) -> None:
     """Auto-enhance a photo (or a folder of photos with --batch)."""
+    _configure_logging(verbose)
     if list_presets_requested:
-        _print_presets()
+        try:
+            _print_presets(preset_dir)
+        except ValueError as exc:
+            raise click.BadParameter(str(exc), param_hint="--preset-dir") from exc
         return
     if input_path is None:
         raise click.UsageError("Missing argument 'INPUT_PATH'.")
@@ -208,7 +285,10 @@ def main(
     if quality is not None and output_format not in {None, "jpeg", "webp"}:
         raise click.UsageError("--quality can only be combined with --format jpeg or webp.")
 
-    preset = load_preset(preset_name) if preset_name else None
+    try:
+        preset = load_preset(preset_name, preset_dir) if preset_name else None
+    except ValueError as exc:
+        raise click.BadParameter(str(exc), param_hint="--preset") from exc
     should_strip_metadata = strip_metadata or metadata == "strip"
 
     if batch:
@@ -228,26 +308,26 @@ def main(
             and output_root != input_root
             and output_root.is_relative_to(input_root)
         )
+        excluded_root = output_root if exclude_output_tree else None
         entries = sorted(
             p
             for p in candidates
             if p.is_file()
-            and not (
-                exclude_output_tree
-                and p.resolve().is_relative_to(output_root)
-            )
+            and not (excluded_root is not None and p.resolve().is_relative_to(excluded_root))
         )
         files = [p for p in entries if is_supported_image(p)]
         if not files:
             if json_summary:
-                _emit_json({
-                    "mode": "batch",
-                    "input": str(input_path),
-                    "processed": 0,
-                    "skipped": len(entries),
-                    "failed": 0,
-                    "items": [],
-                })
+                _emit_json(
+                    {
+                        "mode": "batch",
+                        "input": str(input_path),
+                        "processed": 0,
+                        "skipped": len(entries),
+                        "failed": 0,
+                        "items": [],
+                    }
+                )
             else:
                 click.echo(f"No supported images found in {input_path}")
             return
@@ -265,12 +345,14 @@ def main(
             )
             if out_path.exists() and not overwrite:
                 skipped += 1
-                items.append({
-                    "input": str(file_path),
-                    "output": str(out_path),
-                    "status": "skipped",
-                    "error": "output already exists",
-                })
+                items.append(
+                    {
+                        "input": str(file_path),
+                        "output": str(out_path),
+                        "status": "skipped",
+                        "error": "output already exists",
+                    }
+                )
                 _echo_batch(
                     f"SKIP {file_path.name} (output already exists: {out_path})",
                     index=index,
@@ -280,11 +362,13 @@ def main(
                 continue
             if dry_run:
                 processed += 1
-                items.append({
-                    "input": str(file_path),
-                    "output": str(out_path),
-                    "status": "planned",
-                })
+                items.append(
+                    {
+                        "input": str(file_path),
+                        "output": str(out_path),
+                        "status": "planned",
+                    }
+                )
                 _echo_batch(
                     f"DRY  {file_path.name} -> {out_path}",
                     index=index,
@@ -305,11 +389,13 @@ def main(
                     local_contrast=local_contrast,
                 )
                 processed += 1
-                items.append({
-                    "input": str(file_path),
-                    "output": str(out_path),
-                    "status": "processed",
-                })
+                items.append(
+                    {
+                        "input": str(file_path),
+                        "output": str(out_path),
+                        "status": "processed",
+                    }
+                )
                 _echo_batch(
                     f"OK   {file_path.name} -> {out_path}",
                     index=index,
@@ -319,15 +405,17 @@ def main(
             except KeyboardInterrupt:
                 if not json_summary:
                     click.echo("Interrupted; the current output was not installed.", err=True)
-                raise click.exceptions.Exit(130)
+                raise click.exceptions.Exit(130) from None
             except PROCESSING_ERRORS as exc:
                 failed += 1
-                items.append({
-                    "input": str(file_path),
-                    "output": str(out_path),
-                    "status": "failed",
-                    "error": str(exc),
-                })
+                items.append(
+                    {
+                        "input": str(file_path),
+                        "output": str(out_path),
+                        "status": "failed",
+                        "error": str(exc),
+                    }
+                )
                 _echo_batch(
                     f"FAIL {file_path.name} ({exc})",
                     index=index,
@@ -335,14 +423,16 @@ def main(
                     json_summary=json_summary,
                 )
         if json_summary:
-            _emit_json({
-                "mode": "batch",
-                "input": str(input_path),
-                "processed": processed,
-                "skipped": skipped,
-                "failed": failed,
-                "items": items,
-            })
+            _emit_json(
+                {
+                    "mode": "batch",
+                    "input": str(input_path),
+                    "processed": processed,
+                    "skipped": skipped,
+                    "failed": failed,
+                    "items": items,
+                }
+            )
         else:
             click.echo(f"Summary: {processed} processed, {skipped} skipped, {failed} failed")
         if failed:
@@ -368,12 +458,14 @@ def main(
             )
         if dry_run:
             if json_summary:
-                _emit_json({
-                    "mode": "single",
-                    "input": str(input_path),
-                    "output": str(out_path),
-                    "status": "planned",
-                })
+                _emit_json(
+                    {
+                        "mode": "single",
+                        "input": str(input_path),
+                        "output": str(out_path),
+                        "status": "planned",
+                    }
+                )
             else:
                 click.echo(f"DRY  {input_path.name} -> {out_path}")
             return
@@ -392,16 +484,18 @@ def main(
         except KeyboardInterrupt:
             if not json_summary:
                 click.echo("Interrupted; the output was not installed.", err=True)
-            raise click.exceptions.Exit(130)
+            raise click.exceptions.Exit(130) from None
         except PROCESSING_ERRORS as exc:
             raise click.ClickException(str(exc)) from exc
         if json_summary:
-            _emit_json({
-                "mode": "single",
-                "input": str(input_path),
-                "output": str(out_path),
-                "status": "processed",
-            })
+            _emit_json(
+                {
+                    "mode": "single",
+                    "input": str(input_path),
+                    "output": str(out_path),
+                    "status": "processed",
+                }
+            )
         else:
             click.echo(f"OK   {input_path.name} -> {out_path}")
 

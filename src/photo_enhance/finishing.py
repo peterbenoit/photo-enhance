@@ -2,7 +2,6 @@
 
 import numpy as np
 
-
 _CHUNK_ROWS = 128
 
 
@@ -65,14 +64,14 @@ def apply_finishing(
         black_lift = 20.0 * fade
         for start in range(0, height, _CHUNK_ROWS):
             stop = min(start + _CHUNK_ROWS, height)
-            stripe = result[start:stop].astype(np.float32)
+            stripe: np.ndarray = result[start:stop].astype(np.float32)
             stripe = stripe * channel_scale
             stripe = stripe * contrast + black_lift
             result[start:stop] = np.clip(stripe, 0, 255).astype(np.uint8)
 
     if vignette > 0:
-        x_squared = np.linspace(-1.0, 1.0, width, dtype=np.float32) ** 2
-        y_positions = np.linspace(-1.0, 1.0, height, dtype=np.float32)
+        x_squared: np.ndarray = np.linspace(-1.0, 1.0, width, dtype=np.float32) ** 2
+        y_positions: np.ndarray = np.linspace(-1.0, 1.0, height, dtype=np.float32)
         for start in range(0, height, _CHUNK_ROWS):
             stop = min(start + _CHUNK_ROWS, height)
             radius = np.sqrt(
@@ -81,9 +80,7 @@ def apply_finishing(
             falloff = np.clip((radius - 0.12) / 0.88, 0.0, 1.0) ** 1.6
             mask = 1.0 - vignette * 0.7 * falloff
             stripe = result[start:stop].astype(np.float32)
-            result[start:stop] = np.clip(stripe * mask[:, :, np.newaxis], 0, 255).astype(
-                np.uint8
-            )
+            result[start:stop] = np.clip(stripe * mask[:, :, np.newaxis], 0, 255).astype(np.uint8)
 
     if grain > 0:
         rng = np.random.default_rng(grain_seed)

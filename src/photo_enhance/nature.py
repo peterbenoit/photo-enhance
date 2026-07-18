@@ -119,7 +119,7 @@ def apply_nature_adjustments(
             stripe = source[source_start:source_stop]
             softened = cv2.GaussianBlur(stripe, (0, 0), sigmaX=sigma, sigmaY=sigma)
             offset = start - source_start
-            softened = softened[offset:offset + stop - start]
+            softened = softened[offset : offset + stop - start]
             denoised[start:stop] = cv2.addWeighted(
                 source[start:stop],
                 1.0 - 0.7 * denoise,
@@ -158,8 +158,8 @@ def apply_nature_adjustments(
             stripe = source[source_start:source_stop].astype(np.float32)
             blurred = cv2.GaussianBlur(stripe, (0, 0), sigmaX=1.15, sigmaY=1.15)
             offset = start - source_start
-            stripe = stripe[offset:offset + stop - start]
-            blurred = blurred[offset:offset + stop - start]
+            stripe = stripe[offset : offset + stop - start]
+            blurred = blurred[offset : offset + stop - start]
             high_frequency = stripe - blurred
             threshold = np.max(np.abs(high_frequency), axis=2, keepdims=True) >= 2.0
             sharpened = stripe + 1.25 * detail * high_frequency

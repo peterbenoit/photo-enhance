@@ -1,4 +1,5 @@
 {
+  "schema_version": 1,
   "name": "Woodland",
   "description": "Keeps foliage believable while gently separating a bird from dense green surroundings",
   "category": "nature",

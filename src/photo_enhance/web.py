@@ -8,14 +8,14 @@ without embedding base64 in JSON, and changing preset/intensity re-runs only
 the preset step instead of re-uploading the file.
 """
 
+import os
+import threading
+import uuid
 from collections import OrderedDict
 from dataclasses import asdict
 from io import BytesIO
-import os
 from pathlib import Path
-import threading
 from time import perf_counter
-import uuid
 
 import cv2
 import numpy as np
@@ -24,10 +24,10 @@ from PIL import Image, UnidentifiedImageError
 from werkzeug.exceptions import RequestEntityTooLarge
 from werkzeug.utils import secure_filename
 
-from photo_enhance.auto_levels import AutoSettings, analyze_auto, auto_enhance
-from photo_enhance.finishing import apply_finishing
+from photo_enhance.auto_levels import AutoSettings
 from photo_enhance.imageio_utils import UnsupportedImageError, load_bgr_bytes
-from photo_enhance.nature import NatureSettings, analyze_nature, apply_nature_adjustments
+from photo_enhance.nature import NatureSettings, apply_nature_adjustments
+from photo_enhance.pipeline import EnhancementError, EnhancementOptions, enhance_image
 from photo_enhance.presets import (
     apply_preset_blended,
     apply_preset_with_defaults,
@@ -36,6 +36,7 @@ from photo_enhance.presets import (
 )
 
 app = Flask(__name__)
+app.config["PRESET_DIR"] = os.environ.get("PHOTO_ENHANCE_PRESET_DIR") or None
 
 MAX_UPLOAD_BYTES = 20 * 1024 * 1024  # 20MB
 app.config["MAX_CONTENT_LENGTH"] = MAX_UPLOAD_BYTES
@@ -128,6 +129,7 @@ def _filter_thumbnail(
     enhanced: np.ndarray,
     preset_name: str | None,
     auto_recommendation: dict,
+    preset_dir: Path | None = None,
 ) -> bytes:
     """Render a small representative preview without grading the full image again."""
     height, width = enhanced.shape[:2]
@@ -142,7 +144,7 @@ def _filter_thumbnail(
         thumbnail = enhanced.copy()
 
     if preset_name:
-        preset = load_preset(preset_name)
+        preset = load_preset(preset_name, preset_dir)
         if preset.get("defaults"):
             thumbnail = apply_preset_with_defaults(thumbnail, preset)
             return _bgr_to_jpeg_bytes(thumbnail)
@@ -179,7 +181,7 @@ def _comparison_jpeg(before_jpeg: bytes, after_jpeg: bytes) -> bytes:
     gap = 12
     canvas = np.full((height + header_height, width * 2 + gap, 3), (15, 17, 20), dtype=np.uint8)
     canvas[header_height:, :width] = before
-    canvas[header_height:, width + gap:] = after
+    canvas[header_height:, width + gap :] = after
     label_color = (234, 242, 245)
     cv2.putText(
         canvas,
@@ -252,12 +254,15 @@ def _session_payload(session_id: str, session: dict) -> dict:
 
 @app.errorhandler(RequestEntityTooLarge)
 def upload_too_large(_error):
-    return jsonify(error=f"Photo is too large. Maximum upload size is {MAX_UPLOAD_BYTES // (1024 * 1024)} MB."), 413
+    return jsonify(
+        error=f"Photo is too large. Maximum upload size is {MAX_UPLOAD_BYTES // (1024 * 1024)} MB."
+    ), 413
 
 
 @app.route("/", methods=["GET"])
 def index():
-    presets = list_preset_choices()
+    preset_dir = Path(app.config["PRESET_DIR"]) if app.config["PRESET_DIR"] else None
+    presets = list_preset_choices(preset_dir)
     return render_template(
         "index.html",
         presets=presets,
@@ -309,11 +314,13 @@ def preset_thumbnail(session_id: str, preset_name: str):
         return jsonify(error="Session expired or not found."), 404
 
     selected_preset = None if preset_name == "auto" else preset_name
+    preset_dir = Path(app.config["PRESET_DIR"]) if app.config["PRESET_DIR"] else None
     try:
         jpeg = _filter_thumbnail(
             session["filter_base"],
             selected_preset,
             session["auto_recommendation"],
+            preset_dir,
         )
     except ValueError as exc:
         return jsonify(error=str(exc)), 404
@@ -374,20 +381,12 @@ def upload():
         return jsonify(error="Could not read that file as an image."), 400
 
     try:
-        auto_analysis = analyze_auto(img)
-        auto_base = auto_enhance(img, settings=auto_analysis.settings)
-        nature_settings = analyze_nature(auto_base)
-        enhanced = apply_nature_adjustments(
-            auto_base,
-            shadows=nature_settings.shadows,
-            highlights=nature_settings.highlights,
-            vibrance=nature_settings.vibrance,
-            detail=nature_settings.detail,
-            denoise=nature_settings.denoise,
-        )
-    except (ValueError, cv2.error):
+        enhancement = enhance_image(img)
+        auto_base = enhancement.auto_image
+        enhanced = enhancement.image
+    except EnhancementError:
         return jsonify(error="Could not enhance that image."), 422
-    safe_name = secure_filename(file.filename)
+    safe_name = secure_filename(file.filename or "photo")
     download_stem = Path(safe_name).stem or "photo"
     source_format = metadata.source_format or "Unknown"
     try:
@@ -406,27 +405,33 @@ def upload():
     }
     filter_height, filter_width = auto_base.shape[:2]
     filter_scale = min(1.0, FILTER_THUMBNAIL_MAX_DIMENSION / max(filter_height, filter_width))
-    filter_base = cv2.resize(
-        auto_base,
-        (
-            max(1, round(filter_width * filter_scale)),
-            max(1, round(filter_height * filter_scale)),
-        ),
-        interpolation=cv2.INTER_AREA,
-    ) if filter_scale < 1 else auto_base.copy()
+    filter_base = (
+        cv2.resize(
+            auto_base,
+            (
+                max(1, round(filter_width * filter_scale)),
+                max(1, round(filter_height * filter_scale)),
+            ),
+            interpolation=cv2.INTER_AREA,
+        )
+        if filter_scale < 1
+        else auto_base.copy()
+    )
     session_id = _store_session(
         img,
         filter_base=filter_base,
-        auto_settings=auto_analysis.settings,
-        auto_metrics=asdict(auto_analysis.metrics),
-        nature_settings=nature_settings,
+        auto_settings=enhancement.auto_settings,
+        auto_metrics=asdict(enhancement.auto_analysis.metrics),
+        nature_settings=enhancement.nature_settings,
         before_jpeg=before_jpeg,
         result_jpeg=result_jpeg,
         download_stem=download_stem,
         source_format=source_format,
         details=details,
     )
-    return jsonify(_session_payload(session_id, _get_session(session_id)))
+    stored_session = _get_session(session_id)
+    assert stored_session is not None
+    return jsonify(_session_payload(session_id, stored_session))
 
 
 @app.route("/apply", methods=["POST"])
@@ -438,7 +443,9 @@ def apply():
     intensity = data.get("intensity", 100)
     requested_revision = data.get("revision")
 
-    session = _get_session(session_id) if session_id else None
+    if not isinstance(session_id, str) or not session_id:
+        return jsonify(error="Session expired or not found. Please re-upload the photo."), 400
+    session = _get_session(session_id)
     if session is None:
         return jsonify(error="Session expired or not found. Please re-upload the photo."), 400
     temperature = data.get("temperature", session["temperature"])
@@ -481,50 +488,46 @@ def apply():
     else:
         requested_revision = session["revision"] + 1
 
-    try:
-        auto_settings = AutoSettings(
-            white_balance=auto_white_balance_percent / 100.0,
-            levels=auto_levels_percent / 100.0,
-            local_contrast=auto_local_contrast_percent / 100.0,
-        )
-        enhanced = auto_enhance(session["source"], settings=auto_settings)
-    except (ValueError, cv2.error):
-        return jsonify(error="Could not apply Auto corrections."), 422
+    auto_settings = AutoSettings(
+        white_balance=auto_white_balance_percent / 100.0,
+        levels=auto_levels_percent / 100.0,
+        local_contrast=auto_local_contrast_percent / 100.0,
+    )
+    preset = None
     if preset_name:
+        preset_dir = Path(app.config["PRESET_DIR"]) if app.config["PRESET_DIR"] else None
         try:
-            preset = load_preset(preset_name)
+            preset = load_preset(preset_name, preset_dir)
         except ValueError as exc:
             return jsonify(error=str(exc)), 400
-        try:
-            result = apply_preset_blended(enhanced, preset, intensity_fraction)
-        except (ValueError, cv2.error):
-            return jsonify(error="Could not apply that filter."), 422
-    else:
-        result = enhanced
 
-    try:
-        result = apply_nature_adjustments(
-            result,
+    options = EnhancementOptions(
+        auto_settings=auto_settings,
+        nature_settings=NatureSettings(
             shadows=shadows_percent / 100.0,
             highlights=highlights_percent / 100.0,
             vibrance=vibrance_percent / 100.0,
             detail=detail_percent / 100.0,
             denoise=denoise_percent / 100.0,
-        )
-    except (ValueError, cv2.error):
-        return jsonify(error="Could not apply nature adjustments."), 422
-
+        ),
+        preset=preset,
+        preset_intensity=intensity_fraction,
+        temperature=temperature_percent / 100.0,
+        fade=fade_percent / 100.0,
+        vignette=vignette_percent / 100.0,
+        grain=grain_percent / 100.0,
+        grain_seed=session["grain_seed"],
+    )
     try:
-        result = apply_finishing(
-            result,
-            temperature=temperature_percent / 100.0,
-            fade=fade_percent / 100.0,
-            vignette=vignette_percent / 100.0,
-            grain=grain_percent / 100.0,
-            grain_seed=session["grain_seed"],
-        )
-    except ValueError:
-        return jsonify(error="Could not apply finishing adjustments."), 422
+        result = enhance_image(session["source"], options).image
+    except EnhancementError as exc:
+        messages = {
+            "auto": "Could not apply Auto corrections.",
+            "preset": "Could not apply that filter.",
+            "nature": "Could not apply nature adjustments.",
+            "finishing": "Could not apply finishing adjustments.",
+        }
+        return jsonify(error=messages.get(exc.stage, "Could not enhance that image.")), 422
 
     try:
         result_jpeg = _bgr_to_jpeg_bytes(result)
@@ -543,13 +546,15 @@ def apply():
     if grain_percent:
         finish_suffix += "_grain"
     recommended = session["auto_recommendation"]
-    if any((
-        shadows_percent != recommended["shadows"],
-        highlights_percent != recommended["highlights"],
-        vibrance_percent != recommended["vibrance"],
-        detail_percent != recommended["detail"],
-        denoise_percent != recommended["denoise"],
-    )):
+    if any(
+        (
+            shadows_percent != recommended["shadows"],
+            highlights_percent != recommended["highlights"],
+            vibrance_percent != recommended["vibrance"],
+            detail_percent != recommended["detail"],
+            denoise_percent != recommended["denoise"],
+        )
+    ):
         finish_suffix += "_nature"
     height, width = result.shape[:2]
     details = {

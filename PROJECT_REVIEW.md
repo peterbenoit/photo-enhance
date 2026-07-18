@@ -53,11 +53,11 @@ P2 improves product quality; P3 contains larger, optional capabilities.
 - [ ] Add edge-case tests for all-black, all-white, constant-color, tiny, very large, noisy, extremely dark, and extremely bright images.
 - [ ] Add property-style tests asserting output shape/dtype, finite values, valid channel range, determinism, and no mutation of the input array.
 - [ ] Establish a small, redistributable reference-image corpus and store expected quality metrics or reviewed golden outputs.
-- [ ] Add test coverage reporting and set an initial threshold that includes `cli.py`, `web.py`, and `imageio_utils.py`, not only the CV functions.
-- [ ] Add linting and formatting configuration, then enforce it in local checks and CI.
-- [ ] Add static type checking for public functions and replace the untyped preset `dict` with a typed model or `TypedDict`.
-- [ ] Add CI for supported Python versions on macOS, plus at least one Linux packaging/test job if cross-platform support is intended.
-- [ ] Add a dependency vulnerability and stale-version check to CI, with automated update proposals for direct dependencies.
+- [x] Add test coverage reporting and set an initial threshold that includes `cli.py`, `web.py`, and `imageio_utils.py`, not only the CV functions.
+- [x] Add linting and formatting configuration, then enforce it in local checks and CI.
+- [x] Add static type checking for public functions and replace the untyped preset `dict` with a typed model or `TypedDict`.
+- [x] Add CI for supported Python versions on macOS, plus at least one Linux packaging/test job if cross-platform support is intended.
+- [x] Add a dependency vulnerability and stale-version check to CI, with automated update proposals for direct dependencies.
 
 ## P1 — Make enhancement quality measurable
 
@@ -104,30 +104,30 @@ P2 improves product quality; P3 contains larger, optional capabilities.
 
 ## P2 — Clarify architecture and extension points
 
-- [ ] Introduce an immutable enhancement-options object instead of adding more positional parameters to `auto_enhance()`.
-- [ ] Separate pipeline orchestration from individual transforms so both entry points can request the same validation, metrics, and error model.
-- [ ] Define and validate a versioned preset schema, including required channels, monotonic control-point coordinates, bounds, duplicate points, and saturation range.
-- [ ] Display preset names/descriptions from JSON rather than deriving labels from filenames.
-- [ ] Cache validated preset LUTs rather than rebuilding them for every image in a batch.
-- [ ] Add a controlled user-preset directory with clear precedence and errors; never execute preset content.
-- [ ] Add structured logging behind a verbose flag while keeping normal CLI output concise.
-- [ ] Document the public Python API and decide which functions are stable enough to export from `photo_enhance.__init__`.
-- [ ] Add a package `__version__` sourced from project metadata for diagnostic output.
+- [x] Introduce an immutable enhancement-options object instead of adding more positional parameters to `auto_enhance()`.
+- [x] Separate pipeline orchestration from individual transforms so both entry points can request the same validation, metrics, and error model.
+- [x] Define and validate a versioned preset schema, including required channels, monotonic control-point coordinates, bounds, duplicate points, and saturation range.
+- [x] Display preset names/descriptions from JSON rather than deriving labels from filenames.
+- [x] Cache validated preset LUTs rather than rebuilding them for every image in a batch.
+- [x] Add a controlled user-preset directory with clear precedence and errors; never execute preset content.
+- [x] Add structured logging behind a verbose flag while keeping normal CLI output concise.
+- [x] Document the public Python API and decide which functions are stable enough to export from `photo_enhance.__init__`.
+- [x] Add a package `__version__` sourced from project metadata for diagnostic output.
 
 ## P2 — Packaging, documentation, and repository hygiene
 
-- [ ] Add the actual `LICENSE` file promised by `pyproject.toml`.
-- [ ] Exclude `.claude/settings.local.json` and editor-local configuration from the source distribution; the current sdist includes them.
-- [ ] Decide whether `.vscode/` belongs in the sdist; keep useful shared launch settings in Git but omit them from published artifacts if distributing publicly.
+- [x] Add the actual `LICENSE` file promised by `pyproject.toml`.
+- [x] Exclude `.claude/settings.local.json` and editor-local configuration from the source distribution; the current sdist includes them.
+- [x] Decide whether `.vscode/` belongs in the sdist; keep useful shared launch settings in Git but omit them from published artifacts if distributing publicly.
 - [x] Resolve the Python support mismatch: Python 3.11+ is supported while local development remains pinned to 3.12.
-- [ ] Decide whether the package is macOS-only; if not, document and test the actual supported platforms.
-- [ ] Make the optional web dependency behavior friendly: `photo-enhance-web` should explain how to install the `web` extra instead of failing with `ModuleNotFoundError`.
-- [ ] Add authors, project URLs, classifiers, keywords, and a typed license expression if the package will be published.
-- [ ] Add a concise developer guide covering environment setup, tests, formatting, type checks, builds, and release steps.
+- [x] Decide whether the package is macOS-only; if not, document and test the actual supported platforms.
+- [x] Make the optional web dependency behavior friendly: `photo-enhance-web` should explain how to install the `web` extra instead of failing with `ModuleNotFoundError`.
+- [x] Add authors, project URLs, classifiers, keywords, and a typed license expression if the package will be published.
+- [x] Add a concise developer guide covering environment setup, tests, formatting, type checks, builds, and release steps.
 - [ ] Add real before/after examples with permission-compatible source images; the current `examples/` policy ignores the very assets users need to assess quality.
 - [ ] Document algorithm limitations, lossy transformations, supported modes/bit depths, output naming, overwrite policy, and metadata/privacy behavior.
 - [ ] Add a troubleshooting section for OpenCV/Pillow install issues, unsupported/corrupt images, memory limits, and unexpectedly strong corrections.
-- [ ] Adopt semantic versioning and release notes that distinguish user-visible changes, fixes, compatibility changes, and known limitations.
+- [x] Adopt semantic versioning and release notes that distinguish user-visible changes, fixes, compatibility changes, and known limitations.
 
 ## P3 — Optional v2 capabilities
 

@@ -1,7 +1,11 @@
+import json
+
 import numpy as np
+import pytest
 
 from photo_enhance.presets import (
     _curve_to_lut,
+    _validate_preset,
     apply_preset,
     apply_preset_blended,
     apply_preset_with_defaults,
@@ -39,6 +43,40 @@ def test_curve_to_lut_interpolates_between_control_points():
     lut = _curve_to_lut([[0, 0], [128, 200], [255, 255]])
     assert lut[128] == 200
     assert lut[64] < 200  # midpoint of the rising segment should be below the peak
+
+
+def test_curve_luts_are_cached_and_read_only():
+    points = [[0, 0], [128, 200], [255, 255]]
+
+    first = _curve_to_lut(points)
+    second = _curve_to_lut(points)
+
+    assert first is second
+    assert not first.flags.writeable
+
+
+def test_versioned_schema_rejects_duplicate_curve_coordinates():
+    preset = load_preset("warm_film")
+    preset["curve"]["r"] = [[0, 0], [64, 80], [64, 90], [255, 255]]
+
+    with pytest.raises(ValueError, match="strictly increasing"):
+        _validate_preset(preset, name="duplicate")
+
+
+def test_user_preset_directory_overrides_builtins_without_mutating_cache(tmp_path):
+    custom = load_preset("warm_film")
+    custom["name"] = "My Warm Film"
+    (tmp_path / "warm_film.json").write_text(json.dumps(custom))
+
+    overridden = load_preset("warm_film", tmp_path)
+
+    assert overridden["name"] == "My Warm Film"
+    assert load_preset("warm_film")["name"] == "Warm Film"
+
+
+def test_user_preset_names_cannot_escape_the_selected_directory(tmp_path):
+    with pytest.raises(ValueError, match="only letters"):
+        load_preset("../outside", tmp_path)
 
 
 def test_apply_preset_bw_zeroes_saturation():
@@ -103,8 +141,8 @@ def test_apply_preset_blended_half_intensity_is_between_original_and_full():
     # Halfway result should sit strictly between original and full effect on channels that change.
     changed = full != original
     assert np.any(changed)
-    assert np.all((half[changed] >= np.minimum(original[changed], full[changed])))
-    assert np.all((half[changed] <= np.maximum(original[changed], full[changed])))
+    assert np.all(half[changed] >= np.minimum(original[changed], full[changed]))
+    assert np.all(half[changed] <= np.maximum(original[changed], full[changed]))
 
 
 def test_apply_preset_with_defaults_uses_nature_adjustments():

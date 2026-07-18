@@ -53,7 +53,9 @@ def _validate_image(img: np.ndarray) -> None:
         raise ValueError("img must use uint8 pixels in the 0-255 range")
 
 
-def _validate_number(name: str, value: float, *, minimum: float, maximum: float | None = None) -> None:
+def _validate_number(
+    name: str, value: float, *, minimum: float, maximum: float | None = None
+) -> None:
     if isinstance(value, bool) or not isinstance(value, (int, float)) or not np.isfinite(value):
         raise ValueError(f"{name} must be a finite number")
     if value < minimum or (maximum is not None and value >= maximum):
@@ -131,7 +133,7 @@ def gray_world_white_balance(img: np.ndarray, strength: float = 1.0) -> np.ndarr
     strength = _validate_strength("strength", strength)
     if strength == 0:
         return img.copy()
-    result = img.astype(np.float32)
+    result: np.ndarray = img.astype(np.float32)
     channel_means = result.reshape(-1, 3).mean(axis=0)
     gray_mean = channel_means.mean()
     for c in range(3):
@@ -150,7 +152,7 @@ def auto_levels(img: np.ndarray, clip_percent: float = 0.5, strength: float = 1.
     strength = _validate_strength("strength", strength)
     if strength == 0:
         return img.copy()
-    result = img.astype(np.float32)
+    result: np.ndarray = img.astype(np.float32)
     for c in range(3):
         channel = result[:, :, c]
         low, high = np.percentile(channel, [clip_percent, 100 - clip_percent])
@@ -158,7 +160,7 @@ def auto_levels(img: np.ndarray, clip_percent: float = 0.5, strength: float = 1.
             continue
         channel = (channel - low) * (255.0 / (high - low))
         result[:, :, c] = np.clip(channel, 0, 255)
-    leveled = result.astype(np.uint8)
+    leveled: np.ndarray = result.astype(np.uint8)
     if strength == 1:
         return leveled
     return cv2.addWeighted(img, 1.0 - strength, leveled, strength, 0)
@@ -175,7 +177,11 @@ def apply_clahe(
     _validate_number("clip_limit", clip_limit, minimum=0)
     if clip_limit == 0:
         raise ValueError("clip_limit must be greater than 0")
-    if isinstance(tile_grid_size, bool) or not isinstance(tile_grid_size, int) or tile_grid_size <= 0:
+    if (
+        isinstance(tile_grid_size, bool)
+        or not isinstance(tile_grid_size, int)
+        or tile_grid_size <= 0
+    ):
         raise ValueError("tile_grid_size must be a positive integer")
     strength = _validate_strength("strength", strength)
     if strength == 0:

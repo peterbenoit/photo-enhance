@@ -2,6 +2,39 @@
 
 All notable changes to this project are logged here, newest first.
 
+## 2026-07-18 — Packaging cleanup
+
+- Added authorship, project links, classifiers, keywords, and a modern MIT
+  license expression to package metadata.
+- Kept local agent/editor configuration out of source distributions while
+  retaining shared VS Code launch settings in the repository.
+- The web console entry point now explains how to install the optional `web`
+  extra when Flask is unavailable instead of exposing an import traceback.
+- Added locked macOS/Linux CI for Python 3.11 and 3.12, an 80% branch-coverage
+  floor, Ruff formatting/linting, mypy checks, dependency auditing, and grouped
+  Dependabot proposals.
+- Added a contributor guide covering local checks, builds, installed-wheel
+  smoke testing, and semantic-versioned releases.
+
+## 2026-07-18 — Shared enhancement pipeline
+
+- Added an immutable `EnhancementOptions` recipe and an `EnhancementResult`
+  carrying rendered pixels, analysis metrics, and the exact settings used.
+- Moved Auto, preset, nature, and finishing orchestration into one shared
+  pipeline used by both the CLI and web UI, with stable stage-aware errors.
+- Defined and documented the intentional package-root Python API and exposed a
+  metadata-backed `__version__`; the CLI now supports `--version` as well.
+- Presets now declare schema version 1 and are validated for required metadata,
+  RGB curves, strictly increasing bounded control points, saturation, category,
+  and adjustment defaults before use.
+- Validated curve LUTs are cached as read-only arrays and reused across batch
+  images instead of being rebuilt for every preset application.
+- Added an explicit user-preset directory for the CLI and web server. Validated
+  JSON files use safe IDs, cannot be symlinks, and override same-ID built-ins
+  while all other built-ins remain available as fallback.
+- Added opt-in structured CLI recipe logging with `--verbose`; normal status and
+  JSON-summary output remain concise.
+
 ## 2026-07-18 — CLI planning and preset discovery
 
 - Added `--list-presets`, which works without an input path and prints each

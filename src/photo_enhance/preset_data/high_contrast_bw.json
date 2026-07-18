@@ -1,4 +1,5 @@
 {
+  "schema_version": 1,
   "name": "High Contrast B&W",
   "description": "Fully desaturated with a steep S-curve for punchy contrast",
   "swatch": ["#202224", "#e7e2d8"],

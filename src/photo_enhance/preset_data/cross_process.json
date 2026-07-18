@@ -1,4 +1,5 @@
 {
+  "schema_version": 1,
   "name": "Cross Process",
   "description": "Punchy contrast with cyan shadows and acid-green highlights",
   "swatch": ["#176c79", "#cad54f"],

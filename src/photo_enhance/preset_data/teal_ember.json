@@ -1,4 +1,5 @@
 {
+  "schema_version": 1,
   "name": "Teal & Ember",
   "description": "Cool teal shadows meet warm amber highlights for a cinematic split",
   "swatch": ["#176b70", "#e7783f"],

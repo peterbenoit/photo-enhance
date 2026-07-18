@@ -18,7 +18,7 @@ backlog, and [`CHANGELOG.md`](CHANGELOG.md) for build progress.
 
 ## Requirements
 
-- macOS (Intel or Apple Silicon), the currently tested platform
+- macOS (Intel or Apple Silicon) and Linux, verified in CI
 - Python 3.11 or newer; local development is pinned to 3.12 via `.python-version`
 - [`uv`](https://docs.astral.sh/uv/) — if you don't have it: `brew install uv`
 
@@ -128,6 +128,14 @@ and `overcast`. Creative presets: `warm_film`, `cool_moody`,
 `src/photo_enhance/preset_data/`; nature presets also bundle their intended
 lighting, color, detail, and denoise defaults.
 
+Pass `--preset-dir path/to/presets` to add personal JSON presets to the CLI;
+combine it with `--list-presets` to inspect them. The web UI reads the same
+folder when `PHOTO_ENHANCE_PRESET_DIR` is set before startup. Files must use the
+documented versioned JSON schema, safe filename characters, and cannot be
+symbolic links. A user preset with the same ID intentionally takes precedence
+over its built-in counterpart. Preset files are parsed as data and never
+executed.
+
 The CLI applies EXIF orientation to the pixels and removes the orientation tag
 so viewers cannot rotate the result twice. By default it preserves EXIF
 (including GPS), ICC profiles, and DPI where the output format supports them.
@@ -163,6 +171,10 @@ those lines with one JSON object containing totals and per-file results. Ctrl-C
 exits with status 130, and the atomic writer does not install the interrupted
 photo's temporary output.
 
+Add `--verbose` to log one structured `key=value` recipe line per processed
+photo, including the exact Auto/nature strengths and the color-cast and
+neutral-pixel measurements that informed them. Normal CLI output stays concise.
+
 ## Supported image contract
 
 The enhancement pipeline accepts and returns non-empty NumPy arrays with shape
@@ -177,6 +189,32 @@ data. RAW files remain out of scope.
 ```bash
 uv run pytest
 ```
+
+See [`CONTRIBUTING.md`](CONTRIBUTING.md) for formatting, linting, type checking,
+coverage, dependency auditing, builds, and the semantic-versioned release flow.
+
+## Python API
+
+`enhance_image()` is the stable high-level API. It accepts a BGR `uint8` NumPy
+array and an optional immutable `EnhancementOptions` recipe, then returns an
+`EnhancementResult` containing the rendered image, Auto-stage image, analysis,
+and exact Auto/nature settings used:
+
+```python
+from photo_enhance import EnhancementOptions, enhance_image
+
+result = enhance_image(
+    image_bgr,
+    EnhancementOptions(temperature=0.15, vignette=0.1),
+)
+enhanced_bgr = result.image
+```
+
+`AutoSettings`, `AutoAnalysis`, `EnhancementError`, `EnhancementOptions`,
+`EnhancementResult`, `auto_enhance`, `enhance_image`, and `__version__` are the
+intentional package-root exports. The individual transform modules remain
+available for internal development, but are not yet promised as a stable API.
+The CLI also reports the metadata-backed package version with `--version`.
 
 ## macOS setup notes
 

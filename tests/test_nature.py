@@ -19,13 +19,16 @@ def test_nature_analysis_is_bounded_and_reproducible():
 
     assert first == analyze_nature(image.copy())
     assert isinstance(first, NatureSettings)
-    assert all(0 <= value <= 1 for value in (
-        first.shadows,
-        first.highlights,
-        first.vibrance,
-        first.detail,
-        first.denoise,
-    ))
+    assert all(
+        0 <= value <= 1
+        for value in (
+            first.shadows,
+            first.highlights,
+            first.vibrance,
+            first.detail,
+            first.denoise,
+        )
+    )
     assert first.detail > 0
 
 

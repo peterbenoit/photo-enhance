@@ -1,4 +1,5 @@
 {
+  "schema_version": 1,
   "name": "Backlit Bird",
   "description": "Opens a shaded subject while holding bright sky and rim-lit feather detail",
   "category": "nature",
