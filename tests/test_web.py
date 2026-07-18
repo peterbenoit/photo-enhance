@@ -84,6 +84,10 @@ def test_index_has_progressive_dropzone_and_keyboard_comparison_controls():
     assert 'id="detail-slider" min="0" max="100" value="0"' in text
     assert 'id="denoise-slider" min="0" max="100" value="0"' in text
     assert "loadPresetDefaults(selectedPresetId())" in text
+    assert "const LIVE_UPDATE_INTERVAL = 250" in text
+    assert "adjustmentInFlight" in text
+    assert "await applyFilter()" in text
+    assert "adjustmentDebounce" not in text
     assert 'comparisonRange.addEventListener("input"' in text
     assert "async function restoreSession()" in text
     assert 'url.searchParams.set("session", id)' in text

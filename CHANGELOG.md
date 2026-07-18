@@ -11,6 +11,9 @@ All notable changes to this project are logged here, newest first.
   vibrance, thresholded feather detail, and restrained noise reduction controls.
 - Nature preset selection loads tuned adjustment defaults; controls, downloads,
   thumbnails, and refresh-restored sessions all reflect the selected values.
+- Slider changes now render periodically during continuous dragging, coalesce
+  excess movement, avoid overlapping full-image work, and always apply the
+  final resting value.
 - CLI nature presets apply the same authored defaults without adding an ML,
   cloud, or package dependency.
 - Added processing, preset-metadata, UI, API, persistence, and CLI-compatible

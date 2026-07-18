@@ -1114,14 +1114,43 @@
       radio.addEventListener("change", () => {
         loadPresetDefaults(selectedPresetId());
         updatePresetDescription();
-        applyFilter();
+        scheduleAdjustment(true);
       });
     });
 
-    let adjustmentDebounce = null;
-    function scheduleAdjustment() {
-      clearTimeout(adjustmentDebounce);
-      adjustmentDebounce = setTimeout(applyFilter, 150);
+    const LIVE_UPDATE_INTERVAL = 250;
+    let adjustmentTimer = null;
+    let adjustmentInFlight = false;
+    let adjustmentQueued = false;
+    let lastAdjustmentStartedAt = 0;
+
+    async function flushAdjustment() {
+      adjustmentTimer = null;
+      if (adjustmentInFlight || !adjustmentQueued) return;
+
+      adjustmentQueued = false;
+      adjustmentInFlight = true;
+      lastAdjustmentStartedAt = performance.now();
+      try {
+        await applyFilter();
+      } finally {
+        adjustmentInFlight = false;
+        if (adjustmentQueued) scheduleAdjustment();
+      }
+    }
+
+    function scheduleAdjustment(immediate = false) {
+      adjustmentQueued = true;
+      if (adjustmentInFlight) return;
+
+      clearTimeout(adjustmentTimer);
+      const elapsed = performance.now() - lastAdjustmentStartedAt;
+      const delay = immediate ? 0 : Math.max(0, LIVE_UPDATE_INTERVAL - elapsed);
+      if (delay === 0) {
+        void flushAdjustment();
+      } else {
+        adjustmentTimer = setTimeout(flushAdjustment, delay);
+      }
     }
 
     intensitySlider.addEventListener("input", () => {
