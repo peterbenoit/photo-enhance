@@ -68,7 +68,7 @@ P2 improves product quality; P3 contains larger, optional capabilities.
 - [ ] Avoid unnecessary processing of already well-exposed, well-balanced images by calculating confidence and applying bounded correction strengths.
 - [ ] Tune the combined levels-plus-CLAHE stages to prevent halos, noise amplification, and excessive local contrast.
 - [ ] Add skin-tone checks to the evaluation set so white balance and presets do not create implausible faces.
-- [ ] Record enhancement decisions and useful metrics in a result object for debugging and optional CLI reporting.
+- [x] Record enhancement decisions and useful metrics in a result object for debugging and optional CLI reporting.
 - [ ] Benchmark runtime and peak memory for common phone/camera resolutions, including the largest accepted web upload.
 - [ ] Downsample for histogram analysis and/or process in bounded-memory tiles where benchmarks show meaningful savings.
 

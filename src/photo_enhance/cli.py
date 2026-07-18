@@ -6,9 +6,15 @@ import click
 import cv2
 from PIL import Image, UnidentifiedImageError
 
-from photo_enhance.auto_levels import auto_enhance
+from photo_enhance.auto_levels import analyze_auto, auto_enhance
 from photo_enhance.imageio_utils import is_supported_image, load_bgr, save_bgr
-from photo_enhance.presets import apply_preset_with_defaults, list_presets, load_preset
+from photo_enhance.nature import analyze_nature, apply_nature_adjustments
+from photo_enhance.presets import (
+    apply_preset,
+    apply_preset_with_defaults,
+    list_presets,
+    load_preset,
+)
 
 PROCESSING_ERRORS = (
     OSError,
@@ -37,9 +43,22 @@ def _process_one(
     quality: int | None = None,
 ) -> None:
     img, metadata = load_bgr(input_path)
-    result = auto_enhance(img)
-    if preset is not None:
-        result = apply_preset_with_defaults(result, preset)
+    auto_analysis = analyze_auto(img)
+    base = auto_enhance(img, settings=auto_analysis.settings)
+    nature = analyze_nature(base)
+    if preset is not None and preset.get("defaults"):
+        # Nature presets intentionally replace Auto's nature-stage recommendations.
+        result = apply_preset_with_defaults(base, preset)
+    else:
+        result = apply_preset(base, preset) if preset is not None else base
+        result = apply_nature_adjustments(
+            result,
+            shadows=nature.shadows,
+            highlights=nature.highlights,
+            vibrance=nature.vibrance,
+            detail=nature.detail,
+            denoise=nature.denoise,
+        )
     save_bgr(output_path, result, metadata=None if strip_metadata else metadata, quality=quality)
 
 

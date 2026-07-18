@@ -9,6 +9,7 @@ the preset step instead of re-uploading the file.
 """
 
 from collections import OrderedDict
+from dataclasses import asdict
 from io import BytesIO
 import os
 from pathlib import Path
@@ -23,10 +24,10 @@ from PIL import Image, UnidentifiedImageError
 from werkzeug.exceptions import RequestEntityTooLarge
 from werkzeug.utils import secure_filename
 
-from photo_enhance.auto_levels import auto_enhance
+from photo_enhance.auto_levels import AutoSettings, analyze_auto, auto_enhance
 from photo_enhance.finishing import apply_finishing
 from photo_enhance.imageio_utils import UnsupportedImageError, load_bgr_bytes
-from photo_enhance.nature import apply_nature_adjustments
+from photo_enhance.nature import NatureSettings, analyze_nature, apply_nature_adjustments
 from photo_enhance.presets import (
     apply_preset_blended,
     apply_preset_with_defaults,
@@ -49,8 +50,12 @@ _sessions_lock = threading.Lock()
 
 
 def _store_session(
-    enhanced: np.ndarray,
+    source: np.ndarray,
     *,
+    filter_base: np.ndarray,
+    auto_settings: AutoSettings,
+    auto_metrics: dict,
+    nature_settings: NatureSettings,
     before_jpeg: bytes,
     result_jpeg: bytes,
     download_stem: str,
@@ -60,7 +65,8 @@ def _store_session(
     session_id = uuid.uuid4().hex
     with _sessions_lock:
         _sessions[session_id] = {
-            "enhanced": enhanced,
+            "source": source,
+            "filter_base": filter_base,
             "before_jpeg": before_jpeg,
             "result_jpeg": result_jpeg,
             "result_id": uuid.uuid4().hex,
@@ -74,11 +80,25 @@ def _store_session(
             "fade": 0,
             "vignette": 0,
             "grain": 0,
-            "shadows": 0,
-            "highlights": 0,
-            "vibrance": 0,
-            "detail": 0,
-            "denoise": 0,
+            "auto_white_balance": round(auto_settings.white_balance * 100),
+            "auto_levels": round(auto_settings.levels * 100),
+            "auto_local_contrast": round(auto_settings.local_contrast * 100),
+            "shadows": round(nature_settings.shadows * 100),
+            "highlights": round(nature_settings.highlights * 100),
+            "vibrance": round(nature_settings.vibrance * 100),
+            "detail": round(nature_settings.detail * 100),
+            "denoise": round(nature_settings.denoise * 100),
+            "auto_recommendation": {
+                "auto_white_balance": round(auto_settings.white_balance * 100),
+                "auto_levels": round(auto_settings.levels * 100),
+                "auto_local_contrast": round(auto_settings.local_contrast * 100),
+                "shadows": round(nature_settings.shadows * 100),
+                "highlights": round(nature_settings.highlights * 100),
+                "vibrance": round(nature_settings.vibrance * 100),
+                "detail": round(nature_settings.detail * 100),
+                "denoise": round(nature_settings.denoise * 100),
+            },
+            "auto_metrics": auto_metrics,
             "grain_seed": uuid.uuid4().int & 0xFFFFFFFF,
             "revision": 0,
         }
@@ -104,7 +124,11 @@ def _bgr_to_jpeg_bytes(img_bgr: np.ndarray) -> bytes:
     return buf.tobytes()
 
 
-def _filter_thumbnail(enhanced: np.ndarray, preset_name: str | None) -> bytes:
+def _filter_thumbnail(
+    enhanced: np.ndarray,
+    preset_name: str | None,
+    auto_recommendation: dict,
+) -> bytes:
     """Render a small representative preview without grading the full image again."""
     height, width = enhanced.shape[:2]
     scale = min(1.0, FILTER_THUMBNAIL_MAX_DIMENSION / max(height, width))
@@ -119,7 +143,18 @@ def _filter_thumbnail(enhanced: np.ndarray, preset_name: str | None) -> bytes:
 
     if preset_name:
         preset = load_preset(preset_name)
-        thumbnail = apply_preset_with_defaults(thumbnail, preset)
+        if preset.get("defaults"):
+            thumbnail = apply_preset_with_defaults(thumbnail, preset)
+            return _bgr_to_jpeg_bytes(thumbnail)
+        thumbnail = apply_preset_blended(thumbnail, preset, 1.0)
+    thumbnail = apply_nature_adjustments(
+        thumbnail,
+        shadows=auto_recommendation["shadows"] / 100.0,
+        highlights=auto_recommendation["highlights"] / 100.0,
+        vibrance=auto_recommendation["vibrance"] / 100.0,
+        detail=auto_recommendation["detail"] / 100.0,
+        denoise=auto_recommendation["denoise"] / 100.0,
+    )
     return _bgr_to_jpeg_bytes(thumbnail)
 
 
@@ -201,11 +236,16 @@ def _session_payload(session_id: str, session: dict) -> dict:
         "fade": session["fade"],
         "vignette": session["vignette"],
         "grain": session["grain"],
+        "auto_white_balance": session["auto_white_balance"],
+        "auto_levels": session["auto_levels"],
+        "auto_local_contrast": session["auto_local_contrast"],
         "shadows": session["shadows"],
         "highlights": session["highlights"],
         "vibrance": session["vibrance"],
         "detail": session["detail"],
         "denoise": session["denoise"],
+        "auto_recommendation": session["auto_recommendation"],
+        "auto_metrics": session["auto_metrics"],
         "revision": session["revision"],
     }
 
@@ -270,7 +310,11 @@ def preset_thumbnail(session_id: str, preset_name: str):
 
     selected_preset = None if preset_name == "auto" else preset_name
     try:
-        jpeg = _filter_thumbnail(session["enhanced"], selected_preset)
+        jpeg = _filter_thumbnail(
+            session["filter_base"],
+            selected_preset,
+            session["auto_recommendation"],
+        )
     except ValueError as exc:
         return jsonify(error=str(exc)), 404
     except cv2.error:
@@ -330,7 +374,17 @@ def upload():
         return jsonify(error="Could not read that file as an image."), 400
 
     try:
-        enhanced = auto_enhance(img)
+        auto_analysis = analyze_auto(img)
+        auto_base = auto_enhance(img, settings=auto_analysis.settings)
+        nature_settings = analyze_nature(auto_base)
+        enhanced = apply_nature_adjustments(
+            auto_base,
+            shadows=nature_settings.shadows,
+            highlights=nature_settings.highlights,
+            vibrance=nature_settings.vibrance,
+            detail=nature_settings.detail,
+            denoise=nature_settings.denoise,
+        )
     except (ValueError, cv2.error):
         return jsonify(error="Could not enhance that image."), 422
     safe_name = secure_filename(file.filename)
@@ -350,8 +404,22 @@ def upload():
         "output_format": "JPEG preview",
         "processing_ms": round((perf_counter() - started_at) * 1000),
     }
+    filter_height, filter_width = auto_base.shape[:2]
+    filter_scale = min(1.0, FILTER_THUMBNAIL_MAX_DIMENSION / max(filter_height, filter_width))
+    filter_base = cv2.resize(
+        auto_base,
+        (
+            max(1, round(filter_width * filter_scale)),
+            max(1, round(filter_height * filter_scale)),
+        ),
+        interpolation=cv2.INTER_AREA,
+    ) if filter_scale < 1 else auto_base.copy()
     session_id = _store_session(
-        enhanced,
+        img,
+        filter_base=filter_base,
+        auto_settings=auto_analysis.settings,
+        auto_metrics=asdict(auto_analysis.metrics),
+        nature_settings=nature_settings,
         before_jpeg=before_jpeg,
         result_jpeg=result_jpeg,
         download_stem=download_stem,
@@ -382,6 +450,9 @@ def apply():
     vibrance = data.get("vibrance", session["vibrance"])
     detail = data.get("detail", session["detail"])
     denoise = data.get("denoise", session["denoise"])
+    auto_white_balance = data.get("auto_white_balance", session["auto_white_balance"])
+    auto_levels_strength = data.get("auto_levels", session["auto_levels"])
+    auto_local_contrast = data.get("auto_local_contrast", session["auto_local_contrast"])
 
     try:
         intensity_percent = max(0, min(100, int(intensity)))
@@ -394,6 +465,9 @@ def apply():
         vibrance_percent = max(0, min(100, int(vibrance)))
         detail_percent = max(0, min(100, int(detail)))
         denoise_percent = max(0, min(100, int(denoise)))
+        auto_white_balance_percent = max(0, min(100, int(auto_white_balance)))
+        auto_levels_percent = max(0, min(100, int(auto_levels_strength)))
+        auto_local_contrast_percent = max(0, min(100, int(auto_local_contrast)))
         intensity_fraction = intensity_percent / 100.0
     except (TypeError, ValueError):
         return jsonify(error="Invalid adjustment value."), 400
@@ -407,7 +481,15 @@ def apply():
     else:
         requested_revision = session["revision"] + 1
 
-    enhanced = session["enhanced"]
+    try:
+        auto_settings = AutoSettings(
+            white_balance=auto_white_balance_percent / 100.0,
+            levels=auto_levels_percent / 100.0,
+            local_contrast=auto_local_contrast_percent / 100.0,
+        )
+        enhanced = auto_enhance(session["source"], settings=auto_settings)
+    except (ValueError, cv2.error):
+        return jsonify(error="Could not apply Auto corrections."), 422
     if preset_name:
         try:
             preset = load_preset(preset_name)
@@ -460,7 +542,14 @@ def apply():
         finish_suffix += "_vignette"
     if grain_percent:
         finish_suffix += "_grain"
-    if any((shadows_percent, highlights_percent, vibrance_percent, detail_percent, denoise_percent)):
+    recommended = session["auto_recommendation"]
+    if any((
+        shadows_percent != recommended["shadows"],
+        highlights_percent != recommended["highlights"],
+        vibrance_percent != recommended["vibrance"],
+        detail_percent != recommended["detail"],
+        denoise_percent != recommended["denoise"],
+    )):
         finish_suffix += "_nature"
     height, width = result.shape[:2]
     details = {
@@ -489,6 +578,9 @@ def apply():
             fade=fade_percent,
             vignette=vignette_percent,
             grain=grain_percent,
+            auto_white_balance=auto_white_balance_percent,
+            auto_levels=auto_levels_percent,
+            auto_local_contrast=auto_local_contrast_percent,
             shadows=shadows_percent,
             highlights=highlights_percent,
             vibrance=vibrance_percent,

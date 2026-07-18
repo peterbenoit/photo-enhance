@@ -1,10 +1,28 @@
 """Conservative tonal and detail adjustments for bird and nature photos."""
 
+from dataclasses import dataclass
+
 import cv2
 import numpy as np
 
 _CHUNK_ROWS = 256
 _BLUR_OVERLAP = 8
+_ANALYSIS_MAX_DIMENSION = 512
+
+
+@dataclass(frozen=True)
+class NatureSettings:
+    """Reproducible strengths for wildlife-oriented adjustments."""
+
+    shadows: float
+    highlights: float
+    vibrance: float
+    detail: float
+    denoise: float
+
+    def __post_init__(self) -> None:
+        for name in ("shadows", "highlights", "vibrance", "detail", "denoise"):
+            _validate_strength(name, getattr(self, name))
 
 
 def _validate_image(img: np.ndarray) -> None:
@@ -22,6 +40,45 @@ def _validate_strength(name: str, value: float) -> float:
     if not 0 <= value <= 1:
         raise ValueError(f"{name} must be from 0 to 1")
     return float(value)
+
+
+def _analysis_sample(img: np.ndarray) -> np.ndarray:
+    height, width = img.shape[:2]
+    scale = min(1.0, _ANALYSIS_MAX_DIMENSION / max(height, width))
+    if scale >= 1.0:
+        return img
+    return cv2.resize(
+        img,
+        (max(1, round(width * scale)), max(1, round(height * scale))),
+        interpolation=cv2.INTER_AREA,
+    )
+
+
+def analyze_nature(img: np.ndarray) -> NatureSettings:
+    """Choose restrained tonal, color, detail, and denoise strengths."""
+    _validate_image(img)
+    sample = _analysis_sample(img)
+    luminance = cv2.cvtColor(sample, cv2.COLOR_BGR2GRAY).astype(np.float32)
+    p25, p95 = np.percentile(luminance, [25.0, 95.0])
+    saturation = cv2.cvtColor(sample, cv2.COLOR_BGR2HSV)[:, :, 1].astype(np.float32)
+    mean_saturation = float(saturation.mean() / 255.0)
+
+    blurred = cv2.GaussianBlur(luminance, (0, 0), sigmaX=1.0, sigmaY=1.0)
+    noise_estimate = float(np.median(np.abs(luminance - blurred)))
+
+    shadows = float(np.clip((90.0 - p25) / 90.0, 0.0, 1.0) * 0.45)
+    highlights = float(np.clip((p95 - 210.0) / 45.0, 0.0, 1.0) * 0.40)
+    vibrance = float(np.clip((0.32 - mean_saturation) / 0.32, 0.0, 1.0) * 0.25)
+    denoise = float(np.clip((noise_estimate - 2.0) / 12.0, 0.0, 1.0) * 0.35)
+    detail = float(np.clip(0.22 - 0.30 * denoise, 0.08, 0.22))
+
+    return NatureSettings(
+        shadows=round(shadows, 2),
+        highlights=round(highlights, 2),
+        vibrance=round(vibrance, 2),
+        detail=round(detail, 2),
+        denoise=round(denoise, 2),
+    )
 
 
 def apply_nature_adjustments(
@@ -46,6 +103,9 @@ def apply_nature_adjustments(
     detail = _validate_strength("detail", detail)
     denoise = _validate_strength("denoise", denoise)
 
+    preserve_grayscale = np.array_equal(img[:, :, 0], img[:, :, 1]) and np.array_equal(
+        img[:, :, 1], img[:, :, 2]
+    )
     result = img.copy()
 
     if denoise > 0:
@@ -110,4 +170,7 @@ def apply_nature_adjustments(
             ).astype(np.uint8)
         result = sharpened_result
 
+    if preserve_grayscale:
+        gray = cv2.cvtColor(result, cv2.COLOR_BGR2GRAY)
+        result = cv2.merge((gray, gray, gray))
     return result

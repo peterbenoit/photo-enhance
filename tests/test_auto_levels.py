@@ -1,7 +1,14 @@
 import numpy as np
 import pytest
 
-from photo_enhance.auto_levels import apply_clahe, auto_enhance, auto_levels, gray_world_white_balance
+from photo_enhance.auto_levels import (
+    AutoSettings,
+    analyze_auto,
+    apply_clahe,
+    auto_enhance,
+    auto_levels,
+    gray_world_white_balance,
+)
 
 
 def _flat_image(bgr_value: tuple[int, int, int], size: int = 32) -> np.ndarray:
@@ -58,6 +65,29 @@ def test_auto_enhance_pipeline_runs_end_to_end():
     result = auto_enhance(img)
     assert result.shape == img.shape
     assert result.dtype == np.uint8
+
+
+def test_auto_analysis_returns_bounded_reproducible_settings_and_metrics():
+    image = _flat_image((80, 120, 180), size=64)
+    first = analyze_auto(image)
+    second = analyze_auto(image.copy())
+
+    assert first == second
+    assert 0 <= first.settings.white_balance <= 1
+    assert 0 <= first.settings.levels <= 1
+    assert 0 <= first.settings.local_contrast <= 1
+    assert first.metrics.color_cast > 0
+    assert 0 <= first.metrics.neutral_fraction <= 1
+
+
+def test_auto_enhance_uses_the_provided_settings_exactly():
+    rng = np.random.default_rng(3)
+    image = rng.integers(70, 180, size=(48, 48, 3), dtype=np.uint8)
+    disabled = auto_enhance(image, settings=AutoSettings(0, 0, 0))
+    full = auto_enhance(image, settings=AutoSettings(1, 1, 1))
+
+    assert np.array_equal(disabled, image)
+    assert not np.array_equal(full, image)
 
 
 @pytest.mark.parametrize(

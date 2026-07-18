@@ -7,9 +7,9 @@ and creative filter presets on top.
 Two ways to use it:
 
 - **Web UI** — upload a photo once, compare visual look previews, and adjust
-  intensity, wildlife lighting/detail controls, warmth, fade, vignette, and
-  grain without re-uploading. It runs entirely on `localhost`; nothing leaves
-  the machine.
+  Auto's actual white-balance, levels, and local-contrast recipe alongside
+  wildlife lighting/detail controls, warmth, fade, vignette, and grain without
+  re-uploading. It runs entirely on `localhost`; nothing leaves the machine.
 - **CLI** — enhance one photo or batch-process a folder.
 
 See [`photo-auto-enhance-spec.md`](photo-auto-enhance-spec.md) for the original
@@ -46,6 +46,13 @@ uv run photo-enhance-web
 Then open http://127.0.0.1:5050. Upload a photo once. Choosing a visual look or
 moving an adjustment slider reprocesses the already-uploaded image. The server
 keeps the last 20 uploaded sessions in memory; restarting it clears them.
+
+Auto analyzes a bounded copy of the source, measures tonal range, color cast,
+contrast, saturation, and noise, and sets the editor controls to the exact
+values used for rendering. White balance, levels, local contrast, shadows,
+highlight recovery, vibrance, detail, and denoise therefore begin at different
+values for different photos. Moving any of them re-renders from the source
+pixels; setting all corrections to zero produces an uncorrected result.
 
 Optional vignette and film-grain controls are applied after the chosen filter.
 Warmth and matte-fade controls can also fine-tune the color temperature and
@@ -181,9 +188,10 @@ work in [PROJECT_REVIEW.md](PROJECT_REVIEW.md).
 
 - Keep your originals backed up. The CLI avoids overwriting inputs unless you
   pass `--overwrite`, but that flag can replace files permanently.
-- Enhancement is heuristic. Difficult lighting, dominant colors, or extreme
-  exposure can produce unwanted color shifts, clipping, or contrast. Review
-  every result before replacing or publishing a photo.
+- Enhancement is heuristic. Auto limits white balance when it cannot find
+  enough neutral-looking pixels, but difficult lighting, dominant colors, or
+  extreme exposure can produce unwanted color shifts, clipping, or contrast.
+  Review every result before replacing or publishing a photo.
 - Output may be lossy or discard source information. This is a photo-finishing
   tool, not an archival, restoration, or forensic workflow.
 - The CLI preserves supported EXIF metadata—including GPS—by default. Use

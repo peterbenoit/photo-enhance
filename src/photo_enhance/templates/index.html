@@ -308,7 +308,8 @@
       font-weight: 700;
     }
     #intensity-value, #temperature-value, #fade-value, #vignette-value, #grain-value,
-    #shadows-value, #highlights-value, #vibrance-value, #detail-value, #denoise-value {
+    #shadows-value, #highlights-value, #vibrance-value, #detail-value, #denoise-value,
+    #auto-white-balance-value, #auto-levels-value, #auto-local-contrast-value {
       color: var(--text);
       font-variant-numeric: tabular-nums;
     }
@@ -606,6 +607,22 @@
           <input class="control-slider" type="range" id="intensity-slider" min="0" max="100" value="100" disabled>
           <p id="preset-description">Automatic color, levels, and local contrast correction.</p>
         </div>
+        <div class="finishing-controls" aria-labelledby="auto-corrections-heading">
+          <h3 id="auto-corrections-heading">Auto corrections</h3>
+          <p class="finishing-note" id="auto-analysis-summary">Auto analyzes the source and sets these controls to the values used.</p>
+          <div class="finish-control">
+            <label class="intensity-heading" for="auto-white-balance-slider">White balance <span id="auto-white-balance-value">0%</span></label>
+            <input class="control-slider" type="range" id="auto-white-balance-slider" min="0" max="100" value="0">
+          </div>
+          <div class="finish-control">
+            <label class="intensity-heading" for="auto-levels-slider">Levels <span id="auto-levels-value">0%</span></label>
+            <input class="control-slider" type="range" id="auto-levels-slider" min="0" max="100" value="0">
+          </div>
+          <div class="finish-control">
+            <label class="intensity-heading" for="auto-local-contrast-slider">Local contrast <span id="auto-local-contrast-value">0%</span></label>
+            <input class="control-slider" type="range" id="auto-local-contrast-slider" min="0" max="100" value="0">
+          </div>
+        </div>
         <div class="finishing-controls" aria-labelledby="nature-heading">
           <h3 id="nature-heading">Nature adjustments</h3>
           <p class="finishing-note">Recover difficult light and bring out natural color and feather structure.</p>
@@ -738,6 +755,13 @@
     const detailValue = document.getElementById("detail-value");
     const denoiseSlider = document.getElementById("denoise-slider");
     const denoiseValue = document.getElementById("denoise-value");
+    const autoWhiteBalanceSlider = document.getElementById("auto-white-balance-slider");
+    const autoWhiteBalanceValue = document.getElementById("auto-white-balance-value");
+    const autoLevelsSlider = document.getElementById("auto-levels-slider");
+    const autoLevelsValue = document.getElementById("auto-levels-value");
+    const autoLocalContrastSlider = document.getElementById("auto-local-contrast-slider");
+    const autoLocalContrastValue = document.getElementById("auto-local-contrast-value");
+    const autoAnalysisSummary = document.getElementById("auto-analysis-summary");
     const presetDescription = document.getElementById("preset-description");
     const errorMessage = document.getElementById("error-message");
     const statusMessage = document.getElementById("status-message");
@@ -766,6 +790,7 @@
     let sessionId = null;
     let applyRequestToken = 0;
     let uploadInProgress = false;
+    let autoDefaults = {};
 
     function showError(message, moveFocus = false) {
       errorMessage.textContent = message || "";
@@ -818,6 +843,9 @@
       vibranceValue.textContent = `${vibranceSlider.value}%`;
       detailValue.textContent = `${detailSlider.value}%`;
       denoiseValue.textContent = `${denoiseSlider.value}%`;
+      autoWhiteBalanceValue.textContent = `${autoWhiteBalanceSlider.value}%`;
+      autoLevelsValue.textContent = `${autoLevelsSlider.value}%`;
+      autoLocalContrastValue.textContent = `${autoLocalContrastSlider.value}%`;
     }
 
     function loadPresetDefaults(preset) {
@@ -828,11 +856,11 @@
         fade: defaults.fade ?? 0,
         vignette: defaults.vignette ?? 0,
         grain: defaults.grain ?? 0,
-        shadows: defaults.shadows ?? 0,
-        highlights: defaults.highlights ?? 0,
-        vibrance: defaults.vibrance ?? 0,
-        detail: defaults.detail ?? 0,
-        denoise: defaults.denoise ?? 0,
+        shadows: defaults.shadows ?? autoDefaults.shadows ?? 0,
+        highlights: defaults.highlights ?? autoDefaults.highlights ?? 0,
+        vibrance: defaults.vibrance ?? autoDefaults.vibrance ?? 0,
+        detail: defaults.detail ?? autoDefaults.detail ?? 0,
+        denoise: defaults.denoise ?? autoDefaults.denoise ?? 0,
       };
       intensitySlider.value = values.intensity;
       temperatureSlider.value = values.temperature;
@@ -844,7 +872,21 @@
       vibranceSlider.value = values.vibrance;
       detailSlider.value = values.detail;
       denoiseSlider.value = values.denoise;
+      if (preset === "") {
+        autoWhiteBalanceSlider.value = autoDefaults.auto_white_balance ?? 0;
+        autoLevelsSlider.value = autoDefaults.auto_levels ?? 0;
+        autoLocalContrastSlider.value = autoDefaults.auto_local_contrast ?? 0;
+      }
       updateAdjustmentLabels();
+    }
+
+    function updateAutoAnalysisSummary(metrics) {
+      if (!metrics) return;
+      const range = `${Math.round(metrics.low_percentile)}–${Math.round(metrics.high_percentile)}`;
+      const balance = metrics.color_cast >= 0.08
+        ? "a noticeable color cast"
+        : "fairly balanced color";
+      autoAnalysisSummary.textContent = `Measured tonal range ${range} with ${balance}. The sliders show the exact Auto recipe.`;
     }
 
     function updateResult(data) {
@@ -882,6 +924,7 @@
 
     function renderSession(data, moveFocus = false) {
       sessionId = data.session_id;
+      autoDefaults = data.auto_recommendation || {};
       applyRequestToken = Math.max(applyRequestToken, Number(data.revision) || 0);
       beforeImg.src = data.before;
       afterImg.src = data.after;
@@ -899,12 +942,16 @@
       vignetteSlider.value = data.vignette ?? 0;
       vignetteValue.textContent = `${vignetteSlider.value}%`;
       grainSlider.value = data.grain ?? 0;
+      autoWhiteBalanceSlider.value = data.auto_white_balance ?? 0;
+      autoLevelsSlider.value = data.auto_levels ?? 0;
+      autoLocalContrastSlider.value = data.auto_local_contrast ?? 0;
       shadowsSlider.value = data.shadows ?? 0;
       highlightsSlider.value = data.highlights ?? 0;
       vibranceSlider.value = data.vibrance ?? 0;
       detailSlider.value = data.detail ?? 0;
       denoiseSlider.value = data.denoise ?? 0;
       updateAdjustmentLabels();
+      updateAutoAnalysisSummary(data.auto_metrics);
       afterCaption.textContent = activeLookName() === "Auto"
         ? "After"
         : `After — ${activeLookName()}`;
@@ -1016,6 +1063,9 @@
       const vibrance = Number(vibranceSlider.value);
       const detail = Number(detailSlider.value);
       const denoise = Number(denoiseSlider.value);
+      const autoWhiteBalance = Number(autoWhiteBalanceSlider.value);
+      const autoLevels = Number(autoLevelsSlider.value);
+      const autoLocalContrast = Number(autoLocalContrastSlider.value);
       setStatus("Applying…");
       controls.setAttribute("aria-busy", "true");
 
@@ -1036,6 +1086,9 @@
             vibrance,
             detail,
             denoise,
+            auto_white_balance: autoWhiteBalance,
+            auto_levels: autoLevels,
+            auto_local_contrast: autoLocalContrast,
             revision: token,
           }),
         });
@@ -1179,6 +1232,9 @@
     });
 
     [
+      [autoWhiteBalanceSlider, autoWhiteBalanceValue],
+      [autoLevelsSlider, autoLevelsValue],
+      [autoLocalContrastSlider, autoLocalContrastValue],
       [shadowsSlider, shadowsValue],
       [highlightsSlider, highlightsValue],
       [vibranceSlider, vibranceValue],

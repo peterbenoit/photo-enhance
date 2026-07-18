@@ -2,6 +2,22 @@
 
 All notable changes to this project are logged here, newest first.
 
+## 2026-07-18 — Explainable, parameterized Auto
+
+- Auto now analyzes each source and produces immutable, reproducible strengths
+  for white balance, levels, local contrast, shadows, highlight recovery,
+  vibrance, detail, and denoise.
+- Added real Auto correction sliders whose displayed values are the exact inputs
+  used to render from source pixels; setting every correction to zero returns
+  the uncorrected source rather than an already-baked enhancement.
+- Added bounded source analysis with tonal-range, clipping, contrast, color-cast,
+  neutral-pixel, saturation, and noise measurements. Dominant-color scenes cap
+  white-balance strength when too few neutral-looking pixels are available.
+- Web sessions persist both active settings and the original Auto recommendation,
+  while CLI processing uses the same analysis and nature-stage decisions.
+- Added recipe determinism, bounded-setting, image-response, persistence, and
+  zero-correction outcome coverage. The suite now has 108 tests.
+
 ## 2026-07-18 — Bird and nature enhancement tools
 
 - Added Bird Natural, Feather Detail, Backlit Bird, Woodland, and Overcast

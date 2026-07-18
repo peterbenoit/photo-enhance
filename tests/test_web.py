@@ -83,6 +83,10 @@ def test_index_has_progressive_dropzone_and_keyboard_comparison_controls():
     assert 'id="vibrance-slider" min="0" max="100" value="0"' in text
     assert 'id="detail-slider" min="0" max="100" value="0"' in text
     assert 'id="denoise-slider" min="0" max="100" value="0"' in text
+    assert 'id="auto-white-balance-slider" min="0" max="100" value="0"' in text
+    assert 'id="auto-levels-slider" min="0" max="100" value="0"' in text
+    assert 'id="auto-local-contrast-slider" min="0" max="100" value="0"' in text
+    assert "The sliders show the exact Auto recipe." in text
     assert "loadPresetDefaults(selectedPresetId())" in text
     assert "const LIVE_UPDATE_INTERVAL = 250" in text
     assert "adjustmentInFlight" in text
@@ -169,11 +173,15 @@ def test_upload_returns_session_id_and_images():
     assert body["fade"] == 0
     assert body["vignette"] == 0
     assert body["grain"] == 0
-    assert body["shadows"] == 0
-    assert body["highlights"] == 0
-    assert body["vibrance"] == 0
-    assert body["detail"] == 0
-    assert body["denoise"] == 0
+    assert body["auto_white_balance"] == body["auto_recommendation"]["auto_white_balance"]
+    assert body["auto_levels"] == body["auto_recommendation"]["auto_levels"]
+    assert body["auto_local_contrast"] == body["auto_recommendation"]["auto_local_contrast"]
+    assert body["shadows"] == body["auto_recommendation"]["shadows"]
+    assert body["highlights"] == body["auto_recommendation"]["highlights"]
+    assert body["vibrance"] == body["auto_recommendation"]["vibrance"]
+    assert body["detail"] == body["auto_recommendation"]["detail"]
+    assert body["denoise"] == body["auto_recommendation"]["denoise"]
+    assert body["auto_metrics"]["low_percentile"] >= 0
 
 
 def test_upload_sanitizes_download_filename():
@@ -188,7 +196,7 @@ def test_upload_sanitizes_download_filename():
 def test_upload_enhancement_failure_returns_friendly_error(monkeypatch):
     from photo_enhance import web
 
-    def fail_enhancement(_image):
+    def fail_enhancement(_image, **_kwargs):
         raise ValueError("simulated pipeline failure")
 
     monkeypatch.setattr(web, "auto_enhance", fail_enhancement)
@@ -331,6 +339,39 @@ def test_apply_without_preset_returns_base_enhanced_image():
     assert resp.get_json()["after"].startswith(f"/sessions/{session_id}/images/result?v=")
 
 
+def test_zeroed_auto_recipe_renders_from_source_pixels():
+    client = app.test_client()
+    upload = client.post(
+        "/upload",
+        data={"photo": (io.BytesIO(_jpeg_bytes()), "photo.jpg")},
+        content_type="multipart/form-data",
+    ).get_json()
+
+    response = client.post(
+        "/apply",
+        json={
+            "session_id": upload["session_id"],
+            "auto_white_balance": 0,
+            "auto_levels": 0,
+            "auto_local_contrast": 0,
+            "shadows": 0,
+            "highlights": 0,
+            "vibrance": 0,
+            "detail": 0,
+            "denoise": 0,
+        },
+    )
+
+    assert response.status_code == 200
+    body = response.get_json()
+    assert body["auto_white_balance"] == 0
+    assert body["auto_levels"] == 0
+    assert body["auto_local_contrast"] == 0
+    before = cv2.imdecode(np.frombuffer(client.get(upload["before"]).data, np.uint8), cv2.IMREAD_COLOR)
+    after = cv2.imdecode(np.frombuffer(client.get(body["after"]).data, np.uint8), cv2.IMREAD_COLOR)
+    assert np.abs(before.astype(int) - after.astype(int)).mean() < 1
+
+
 def test_session_image_urls_serve_jpeg_and_download_headers():
     client = app.test_client()
     upload = client.post(
@@ -419,6 +460,9 @@ def test_session_state_restores_current_filter_and_intensity():
             "fade": 10,
             "vignette": 45,
             "grain": 20,
+            "auto_white_balance": 15,
+            "auto_levels": 35,
+            "auto_local_contrast": 25,
             "revision": 4,
         },
     )
@@ -434,6 +478,9 @@ def test_session_state_restores_current_filter_and_intensity():
     assert body["fade"] == 10
     assert body["vignette"] == 45
     assert body["grain"] == 20
+    assert body["auto_white_balance"] == 15
+    assert body["auto_levels"] == 35
+    assert body["auto_local_contrast"] == 25
     assert body["revision"] == 4
     assert body["after"] == applied.get_json()["after"]
 

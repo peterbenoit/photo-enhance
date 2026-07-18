@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from photo_enhance.nature import apply_nature_adjustments
+from photo_enhance.nature import NatureSettings, analyze_nature, apply_nature_adjustments
 
 
 def test_zero_nature_adjustments_are_a_noop_without_mutating_input():
@@ -11,6 +11,30 @@ def test_zero_nature_adjustments_are_a_noop_without_mutating_input():
 
     assert np.array_equal(result, image)
     assert result is not image
+
+
+def test_nature_analysis_is_bounded_and_reproducible():
+    image = np.full((64, 64, 3), (80, 110, 130), dtype=np.uint8)
+    first = analyze_nature(image)
+
+    assert first == analyze_nature(image.copy())
+    assert isinstance(first, NatureSettings)
+    assert all(0 <= value <= 1 for value in (
+        first.shadows,
+        first.highlights,
+        first.vibrance,
+        first.detail,
+        first.denoise,
+    ))
+    assert first.detail > 0
+
+
+def test_nature_analysis_responds_to_dark_and_bright_images():
+    dark = np.full((64, 64, 3), 35, dtype=np.uint8)
+    bright = np.full((64, 64, 3), 240, dtype=np.uint8)
+
+    assert analyze_nature(dark).shadows > analyze_nature(bright).shadows
+    assert analyze_nature(bright).highlights > analyze_nature(dark).highlights
 
 
 def test_shadows_lift_dark_tones_and_highlights_recover_bright_tones():
