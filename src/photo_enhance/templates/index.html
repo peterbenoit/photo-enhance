@@ -234,7 +234,7 @@
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 0.55rem;
-      margin-bottom: 1rem;
+      margin-bottom: 0.55rem;
     }
     .reset-action {
       min-height: 44px;
@@ -248,6 +248,19 @@
       border-color: var(--accent);
       color: var(--accent-strong);
     }
+    .history-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.55rem;
+      margin-bottom: 1rem;
+    }
+    .history-action {
+      min-height: 44px;
+      padding: 0.55rem 0.65rem;
+      background: var(--surface-raised);
+      font-size: 0.76rem;
+    }
+    .history-action:disabled { cursor: not-allowed; }
     .editor-guide {
       margin-bottom: 1rem;
       border: 1px solid var(--border);
@@ -282,21 +295,33 @@
       font-size: 0.72rem;
     }
     .context-help a { color: var(--accent-strong); }
+    .editor-accordion {
+      display: grid;
+      gap: 0.55rem;
+    }
+    .control-section {
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: var(--surface-soft);
+    }
+    .control-section[open] { border-color: var(--border-strong); }
+    .control-section summary {
+      min-height: 44px;
+      padding: 0.7rem 0.8rem;
+      color: var(--text);
+      cursor: pointer;
+      font-size: 0.78rem;
+      font-weight: 800;
+      letter-spacing: 0.04em;
+    }
+    .control-section[open] summary { color: var(--accent-strong); }
+    .control-section summary::marker { color: var(--accent); }
+    .control-section-body { padding: 0 0.75rem 0.85rem; }
     .filter-strip {
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 0.65rem;
     }
-    .filter-group-title {
-      grid-column: 1 / -1;
-      margin: 0.35rem 0 0;
-      color: var(--muted);
-      font-size: 0.68rem;
-      font-weight: 800;
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
-    }
-    .filter-group-title:not(:first-child) { margin-top: 0.8rem; }
     .filter-option { position: relative; min-width: 0; }
     .filter-radio {
       position: absolute;
@@ -373,16 +398,6 @@
       color: var(--muted);
       font-size: 0.78rem;
       line-height: 1.4;
-    }
-    .finishing-controls {
-      margin-top: 1rem;
-      padding-top: 1rem;
-      border-top: 1px solid var(--border);
-    }
-    .finishing-controls h3 {
-      margin: 0 0 0.35rem;
-      font-size: 0.78rem;
-      letter-spacing: 0.04em;
     }
     .finishing-note {
       margin: 0 0 0.8rem;
@@ -707,10 +722,14 @@
           <button class="reset-action reset-action-primary" id="reset-auto-button" type="button">Reset to Auto</button>
           <button class="reset-action" id="reset-all-button" type="button">Reset all</button>
         </div>
+        <div class="history-actions" role="group" aria-label="Edit history">
+          <button class="history-action" id="undo-button" type="button" disabled>Undo</button>
+          <button class="history-action" id="redo-button" type="button" disabled>Redo</button>
+        </div>
         <details class="editor-guide" id="editor-guide">
           <summary>New here? How to choose</summary>
           <div class="guide-content">
-            <p><strong>Start with Auto.</strong> If the photo looks balanced, you may already be done. Choose a filter when it suits the subject or the mood you want, then use sliders to fix one problem at a time.</p>
+            <p><strong>Start with Creative when you want a mood.</strong> Open Nature &amp; wildlife and choose Auto when you want a balanced correction, then use sliders to fix one problem at a time.</p>
             <h3 id="guide-filters" tabindex="-1">Choose a starting look</h3>
             <ul>
               <li><strong>Auto:</strong> a natural correction for most photos.</li>
@@ -746,109 +765,128 @@
             <p><strong>Keep changes small.</strong> Compare with the original after each fix. If the adjustment is the first thing you notice, back it down.</p>
           </div>
         </details>
-        <p class="context-help"><a href="#guide-filters" data-guide-target="guide-filters">Which filter should I use?</a></p>
-        <div class="filter-strip" id="filter-strip">
-          <h3 class="filter-group-title">Nature &amp; wildlife</h3>
-          <div class="filter-option">
-            <input class="filter-radio" type="radio" name="preset" id="preset-auto" value="" checked>
-            <label class="filter-card" for="preset-auto">
-              <span class="filter-swatch filter-swatch-auto" aria-hidden="true">
-                <img class="filter-preview" data-preset="auto" alt="">
-              </span>
-              <span class="filter-name">Auto</span>
-            </label>
-          </div>
-          {% for preset in nature_presets %}
-            <div class="filter-option">
-              <input class="filter-radio" type="radio" name="preset" id="preset-{{ preset.id }}" value="{{ preset.id }}">
-              <label class="filter-card" for="preset-{{ preset.id }}">
-                <span class="filter-swatch" style="--swatch-start: {{ preset.swatch[0] }}; --swatch-end: {{ preset.swatch[1] }}" aria-hidden="true">
-                  <img class="filter-preview" data-preset="{{ preset.id }}" alt="">
-                </span>
-                <span class="filter-name">{{ preset.name }}</span>
-              </label>
+        <div class="editor-accordion" id="editor-accordion">
+          <details class="control-section" id="creative-section" data-control-section data-look-section open>
+            <summary>Creative</summary>
+            <div class="control-section-body">
+              <p class="context-help"><a href="#guide-filters" data-guide-target="guide-filters">Which filter should I use?</a></p>
+              <div class="filter-strip">
+                {% for preset in creative_presets %}
+                  <div class="filter-option">
+                    <input class="filter-radio" type="radio" name="preset" id="preset-{{ preset.id }}" value="{{ preset.id }}">
+                    <label class="filter-card" for="preset-{{ preset.id }}">
+                      <span class="filter-swatch" style="--swatch-start: {{ preset.swatch[0] }}; --swatch-end: {{ preset.swatch[1] }}" aria-hidden="true">
+                        <img class="filter-preview" data-preset="{{ preset.id }}" alt="">
+                      </span>
+                      <span class="filter-name">{{ preset.name }}</span>
+                    </label>
+                  </div>
+                {% endfor %}
+              </div>
+              <div class="intensity-control" id="look-intensity-control">
+                <label class="intensity-heading" for="intensity-slider">Intensity <span id="intensity-value">100%</span></label>
+                <input class="control-slider" type="range" id="intensity-slider" min="0" max="100" value="100" disabled>
+                <p id="preset-description">Automatic color, levels, and local contrast correction.</p>
+              </div>
             </div>
-          {% endfor %}
-          <h3 class="filter-group-title">Creative</h3>
-          {% for preset in creative_presets %}
-            <div class="filter-option">
-              <input class="filter-radio" type="radio" name="preset" id="preset-{{ preset.id }}" value="{{ preset.id }}">
-              <label class="filter-card" for="preset-{{ preset.id }}">
-                <span class="filter-swatch" style="--swatch-start: {{ preset.swatch[0] }}; --swatch-end: {{ preset.swatch[1] }}" aria-hidden="true">
-                  <img class="filter-preview" data-preset="{{ preset.id }}" alt="">
-                </span>
-                <span class="filter-name">{{ preset.name }}</span>
-              </label>
+          </details>
+          <details class="control-section" id="nature-filters-section" data-control-section data-look-section>
+            <summary>Nature &amp; wildlife</summary>
+            <div class="control-section-body">
+              <p class="context-help"><a href="#guide-filters" data-guide-target="guide-filters">Which filter should I use?</a></p>
+              <div class="filter-strip">
+                <div class="filter-option">
+                  <input class="filter-radio" type="radio" name="preset" id="preset-auto" value="" checked>
+                  <label class="filter-card" for="preset-auto">
+                    <span class="filter-swatch filter-swatch-auto" aria-hidden="true">
+                      <img class="filter-preview" data-preset="auto" alt="">
+                    </span>
+                    <span class="filter-name">Auto</span>
+                  </label>
+                </div>
+                {% for preset in nature_presets %}
+                  <div class="filter-option">
+                    <input class="filter-radio" type="radio" name="preset" id="preset-{{ preset.id }}" value="{{ preset.id }}">
+                    <label class="filter-card" for="preset-{{ preset.id }}">
+                      <span class="filter-swatch" style="--swatch-start: {{ preset.swatch[0] }}; --swatch-end: {{ preset.swatch[1] }}" aria-hidden="true">
+                        <img class="filter-preview" data-preset="{{ preset.id }}" alt="">
+                      </span>
+                      <span class="filter-name">{{ preset.name }}</span>
+                    </label>
+                  </div>
+                {% endfor %}
+              </div>
             </div>
-          {% endfor %}
-        </div>
-        <div class="intensity-control">
-          <label class="intensity-heading" for="intensity-slider">Intensity <span id="intensity-value">100%</span></label>
-          <input class="control-slider" type="range" id="intensity-slider" min="0" max="100" value="100" disabled>
-          <p id="preset-description">Automatic color, levels, and local contrast correction.</p>
-        </div>
-        <div class="finishing-controls" aria-labelledby="auto-corrections-heading">
-          <h3 id="auto-corrections-heading">Auto corrections</h3>
-          <p class="finishing-note" id="auto-analysis-summary">Auto analyzes the source and sets these controls to the values used.</p>
-          <p class="context-help"><a href="#guide-auto" data-guide-target="guide-auto">What do these corrections fix?</a></p>
-          <div class="finish-control">
-            <label class="intensity-heading" for="auto-white-balance-slider">White balance <span id="auto-white-balance-value">0%</span></label>
-            <input class="control-slider" type="range" id="auto-white-balance-slider" min="0" max="100" value="0">
-          </div>
-          <div class="finish-control">
-            <label class="intensity-heading" for="auto-levels-slider">Levels <span id="auto-levels-value">0%</span></label>
-            <input class="control-slider" type="range" id="auto-levels-slider" min="0" max="100" value="0">
-          </div>
-          <div class="finish-control">
-            <label class="intensity-heading" for="auto-local-contrast-slider">Local contrast <span id="auto-local-contrast-value">0%</span></label>
-            <input class="control-slider" type="range" id="auto-local-contrast-slider" min="0" max="100" value="0">
-          </div>
-        </div>
-        <div class="finishing-controls" aria-labelledby="nature-heading">
-          <h3 id="nature-heading">Nature adjustments</h3>
-          <p class="finishing-note">Recover difficult light and bring out natural color and feather structure.</p>
-          <p class="context-help"><a href="#guide-nature" data-guide-target="guide-nature">Which adjustment fixes what?</a></p>
-          <div class="finish-control">
-            <label class="intensity-heading" for="shadows-slider">Shadows <span id="shadows-value">0%</span></label>
-            <input class="control-slider" type="range" id="shadows-slider" min="0" max="100" value="0">
-          </div>
-          <div class="finish-control">
-            <label class="intensity-heading" for="highlights-slider">Highlight recovery <span id="highlights-value">0%</span></label>
-            <input class="control-slider" type="range" id="highlights-slider" min="0" max="100" value="0">
-          </div>
-          <div class="finish-control">
-            <label class="intensity-heading" for="vibrance-slider">Vibrance <span id="vibrance-value">0%</span></label>
-            <input class="control-slider" type="range" id="vibrance-slider" min="0" max="100" value="0">
-          </div>
-          <div class="finish-control">
-            <label class="intensity-heading" for="detail-slider">Feather detail <span id="detail-value">0%</span></label>
-            <input class="control-slider" type="range" id="detail-slider" min="0" max="100" value="0">
-          </div>
-          <div class="finish-control">
-            <label class="intensity-heading" for="denoise-slider">Noise reduction <span id="denoise-value">0%</span></label>
-            <input class="control-slider" type="range" id="denoise-slider" min="0" max="100" value="0">
-          </div>
-        </div>
-        <div class="finishing-controls" aria-labelledby="finishing-heading">
-          <h3 id="finishing-heading">Finishing touches</h3>
-          <p class="finishing-note">Optional effects applied after the selected look.</p>
-          <p class="context-help"><a href="#guide-finishing" data-guide-target="guide-finishing">When should I use these?</a></p>
-          <div class="finish-control">
-            <label class="intensity-heading" for="temperature-slider">Warmth <span id="temperature-value">Neutral</span></label>
-            <input class="control-slider" type="range" id="temperature-slider" min="-100" max="100" value="0">
-          </div>
-          <div class="finish-control">
-            <label class="intensity-heading" for="fade-slider">Fade <span id="fade-value">0%</span></label>
-            <input class="control-slider" type="range" id="fade-slider" min="0" max="100" value="0">
-          </div>
-          <div class="finish-control">
-            <label class="intensity-heading" for="vignette-slider">Vignette <span id="vignette-value">0%</span></label>
-            <input class="control-slider" type="range" id="vignette-slider" min="0" max="100" value="0">
-          </div>
-          <div class="finish-control">
-            <label class="intensity-heading" for="grain-slider">Film grain <span id="grain-value">0%</span></label>
-            <input class="control-slider" type="range" id="grain-slider" min="0" max="100" value="0">
-          </div>
+          </details>
+          <details class="control-section" id="auto-corrections-section" data-control-section>
+            <summary>Auto corrections</summary>
+            <div class="control-section-body">
+              <p class="finishing-note" id="auto-analysis-summary">Auto analyzes the source and sets these controls to the values used.</p>
+              <p class="context-help"><a href="#guide-auto" data-guide-target="guide-auto">What do these corrections fix?</a></p>
+              <div class="finish-control">
+                <label class="intensity-heading" for="auto-white-balance-slider">White balance <span id="auto-white-balance-value">0%</span></label>
+                <input class="control-slider" type="range" id="auto-white-balance-slider" min="0" max="100" value="0">
+              </div>
+              <div class="finish-control">
+                <label class="intensity-heading" for="auto-levels-slider">Levels <span id="auto-levels-value">0%</span></label>
+                <input class="control-slider" type="range" id="auto-levels-slider" min="0" max="100" value="0">
+              </div>
+              <div class="finish-control">
+                <label class="intensity-heading" for="auto-local-contrast-slider">Local contrast <span id="auto-local-contrast-value">0%</span></label>
+                <input class="control-slider" type="range" id="auto-local-contrast-slider" min="0" max="100" value="0">
+              </div>
+            </div>
+          </details>
+          <details class="control-section" id="nature-adjustments-section" data-control-section>
+            <summary>Nature adjustments</summary>
+            <div class="control-section-body">
+              <p class="finishing-note">Recover difficult light and bring out natural color and feather structure.</p>
+              <p class="context-help"><a href="#guide-nature" data-guide-target="guide-nature">Which adjustment fixes what?</a></p>
+              <div class="finish-control">
+                <label class="intensity-heading" for="shadows-slider">Shadows <span id="shadows-value">0%</span></label>
+                <input class="control-slider" type="range" id="shadows-slider" min="0" max="100" value="0">
+              </div>
+              <div class="finish-control">
+                <label class="intensity-heading" for="highlights-slider">Highlight recovery <span id="highlights-value">0%</span></label>
+                <input class="control-slider" type="range" id="highlights-slider" min="0" max="100" value="0">
+              </div>
+              <div class="finish-control">
+                <label class="intensity-heading" for="vibrance-slider">Vibrance <span id="vibrance-value">0%</span></label>
+                <input class="control-slider" type="range" id="vibrance-slider" min="0" max="100" value="0">
+              </div>
+              <div class="finish-control">
+                <label class="intensity-heading" for="detail-slider">Feather detail <span id="detail-value">0%</span></label>
+                <input class="control-slider" type="range" id="detail-slider" min="0" max="100" value="0">
+              </div>
+              <div class="finish-control">
+                <label class="intensity-heading" for="denoise-slider">Noise reduction <span id="denoise-value">0%</span></label>
+                <input class="control-slider" type="range" id="denoise-slider" min="0" max="100" value="0">
+              </div>
+            </div>
+          </details>
+          <details class="control-section" id="finishing-section" data-control-section>
+            <summary>Finishing touches</summary>
+            <div class="control-section-body">
+              <p class="finishing-note">Optional effects applied after the selected look.</p>
+              <p class="context-help"><a href="#guide-finishing" data-guide-target="guide-finishing">When should I use these?</a></p>
+              <div class="finish-control">
+                <label class="intensity-heading" for="temperature-slider">Warmth <span id="temperature-value">Neutral</span></label>
+                <input class="control-slider" type="range" id="temperature-slider" min="-100" max="100" value="0">
+              </div>
+              <div class="finish-control">
+                <label class="intensity-heading" for="fade-slider">Fade <span id="fade-value">0%</span></label>
+                <input class="control-slider" type="range" id="fade-slider" min="0" max="100" value="0">
+              </div>
+              <div class="finish-control">
+                <label class="intensity-heading" for="vignette-slider">Vignette <span id="vignette-value">0%</span></label>
+                <input class="control-slider" type="range" id="vignette-slider" min="0" max="100" value="0">
+              </div>
+              <div class="finish-control">
+                <label class="intensity-heading" for="grain-slider">Film grain <span id="grain-value">0%</span></label>
+                <input class="control-slider" type="range" id="grain-slider" min="0" max="100" value="0">
+              </div>
+            </div>
+          </details>
         </div>
       </fieldset>
 
@@ -985,13 +1023,20 @@
     const recentClear = document.getElementById("recent-clear");
     const resetAutoButton = document.getElementById("reset-auto-button");
     const resetAllButton = document.getElementById("reset-all-button");
+    const undoButton = document.getElementById("undo-button");
+    const redoButton = document.getElementById("redo-button");
     const editorGuide = document.getElementById("editor-guide");
     const guideLinks = Array.from(document.querySelectorAll("[data-guide-target]"));
+    const controlSections = Array.from(document.querySelectorAll("[data-control-section]"));
+    const lookIntensityControl = document.getElementById("look-intensity-control");
+    const natureFiltersSection = document.getElementById("nature-filters-section");
 
     let sessionId = null;
     let applyRequestToken = 0;
     let uploadInProgress = false;
     let autoDefaults = {};
+    let canUndo = false;
+    let canRedo = false;
 
     function showError(message, moveFocus = false) {
       errorMessage.textContent = message || "";
@@ -1001,6 +1046,27 @@
 
     function setStatus(message) {
       statusMessage.textContent = message || "";
+    }
+
+    function activateControlSection(activeSection) {
+      controlSections.forEach((section) => {
+        section.open = section === activeSection;
+      });
+      if (activeSection.hasAttribute("data-look-section")) {
+        activeSection.querySelector(".control-section-body").append(lookIntensityControl);
+      }
+    }
+
+    function updateHistoryControls(data = {}) {
+      if (typeof data.can_undo === "boolean") canUndo = data.can_undo;
+      if (typeof data.can_redo === "boolean") canRedo = data.can_redo;
+      undoButton.disabled = !canUndo;
+      redoButton.disabled = !canRedo;
+    }
+
+    function setHistoryBusy(busy) {
+      undoButton.disabled = busy || !canUndo;
+      redoButton.disabled = busy || !canRedo;
     }
 
     function updatePresetDescription() {
@@ -1145,6 +1211,9 @@
       sessionId = null;
       applyRequestToken += 1;
       autoDefaults = {};
+      canUndo = false;
+      canRedo = false;
+      updateHistoryControls();
       editorShell.hidden = true;
       results.hidden = true;
       controls.disabled = true;
@@ -1273,14 +1342,7 @@
       });
     }
 
-    function renderSession(data, moveFocus = false) {
-      sessionId = data.session_id;
-      autoDefaults = data.auto_recommendation || {};
-      applyRequestToken = Math.max(applyRequestToken, Number(data.revision) || 0);
-      beforeImg.src = data.before;
-      afterImg.src = data.after;
-      comparisonBeforeImg.src = data.before;
-      comparisonAfterImg.src = data.after;
+    function loadRecipeControls(data) {
       const restoredPreset = data.preset || "";
       const restoredRadio = presetRadios.find((radio) => radio.value === restoredPreset);
       if (restoredRadio) restoredRadio.checked = true;
@@ -1302,10 +1364,28 @@
       detailSlider.value = data.detail ?? 0;
       denoiseSlider.value = data.denoise ?? 0;
       updateAdjustmentLabels();
-      updateAutoAnalysisSummary(data.auto_metrics);
+      updatePresetDescription();
+    }
+
+    function renderAppliedRecipe(data) {
+      loadRecipeControls(data);
+      afterImg.src = data.after;
+      comparisonAfterImg.src = data.after;
       afterCaption.textContent = activeLookName() === "Auto"
         ? "After"
         : `After — ${activeLookName()}`;
+      updateResult(data);
+      updateHistoryControls(data);
+    }
+
+    function renderSession(data, moveFocus = false) {
+      sessionId = data.session_id;
+      autoDefaults = data.auto_recommendation || {};
+      applyRequestToken = Math.max(applyRequestToken, Number(data.revision) || 0);
+      beforeImg.src = data.before;
+      comparisonBeforeImg.src = data.before;
+      renderAppliedRecipe(data);
+      updateAutoAnalysisSummary(data.auto_metrics);
       results.hidden = false;
       editorShell.hidden = false;
       controls.disabled = false;
@@ -1313,8 +1393,6 @@
       updateFilterPreviews(sessionId);
       comparisonRange.value = 50;
       updateComparisonPosition();
-      updatePresetDescription();
-      updateResult(data);
       if (moveFocus) resultsHeading.focus();
     }
 
@@ -1421,6 +1499,7 @@
       const autoLocalContrast = Number(autoLocalContrastSlider.value);
       setStatus("Applying…");
       controls.setAttribute("aria-busy", "true");
+      setHistoryBusy(true);
 
       try {
         const response = await fetch("/apply", {
@@ -1450,12 +1529,7 @@
         if (!response.ok) {
           throw new Error(data.error || "Could not apply filter.");
         }
-        afterImg.src = data.after;
-        comparisonAfterImg.src = data.after;
-        afterCaption.textContent = activeLookName() === "Auto"
-          ? "After"
-          : `After — ${activeLookName()}`;
-        updateResult(data);
+        renderAppliedRecipe(data);
         setStatus(successMessage);
         scheduleRecentRefresh();
       } catch (err) {
@@ -1464,7 +1538,50 @@
           setStatus("");
         }
       } finally {
-        if (token === applyRequestToken) controls.removeAttribute("aria-busy");
+        if (token === applyRequestToken) {
+          controls.removeAttribute("aria-busy");
+          setHistoryBusy(false);
+        }
+      }
+    }
+
+    async function navigateHistory(direction) {
+      if (!sessionId) return;
+      clearTimeout(adjustmentTimer);
+      adjustmentTimer = null;
+      adjustmentQueued = false;
+      pendingApplyStatus = "";
+      const token = ++applyRequestToken;
+      showError("");
+      setStatus(direction === "undo" ? "Undoing…" : "Redoing…");
+      controls.setAttribute("aria-busy", "true");
+      setHistoryBusy(true);
+
+      try {
+        const response = await fetch(
+          `/sessions/${encodeURIComponent(sessionId)}/history/${direction}`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ revision: token }),
+          },
+        );
+        const data = await response.json();
+        if (token !== applyRequestToken) return;
+        if (!response.ok) throw new Error(data.error || "Could not change edit history.");
+        renderAppliedRecipe(data);
+        setStatus(direction === "undo" ? "Last adjustment undone." : "Adjustment restored.");
+        scheduleRecentRefresh();
+      } catch (error) {
+        if (token === applyRequestToken) {
+          showError(error.message);
+          setStatus("");
+        }
+      } finally {
+        if (token === applyRequestToken) {
+          controls.removeAttribute("aria-busy");
+          setHistoryBusy(false);
+        }
       }
     }
 
@@ -1544,10 +1661,17 @@
       });
     });
 
+    controlSections.forEach((section) => {
+      section.addEventListener("toggle", () => {
+        if (section.open) activateControlSection(section);
+      });
+    });
+
     resetAutoButton.addEventListener("click", () => {
       selectAutoPreset();
       loadPresetDefaults("");
       updatePresetDescription();
+      activateControlSection(natureFiltersSection);
       scheduleAdjustment(true, "Auto recommendation restored.");
     });
 
@@ -1555,8 +1679,12 @@
       selectAutoPreset();
       clearAllAdjustments();
       updatePresetDescription();
+      activateControlSection(natureFiltersSection);
       scheduleAdjustment(true, "All adjustments reset. Showing the uncorrected source.");
     });
+
+    undoButton.addEventListener("click", () => void navigateHistory("undo"));
+    redoButton.addEventListener("click", () => void navigateHistory("redo"));
 
     presetRadios.forEach((radio) => {
       radio.addEventListener("change", () => {

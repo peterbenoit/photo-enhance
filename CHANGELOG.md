@@ -2,6 +2,28 @@
 
 All notable changes to this project are logged here, newest first.
 
+## 2026-07-19 — Accordion editor navigation
+
+- Reorganized the sidebar into mutually exclusive, native disclosure sections
+  with Creative open first, followed by Nature & wildlife and the three
+  adjustment groups.
+- Kept the shared Intensity control inside whichever look section is open so it
+  remains available without duplicating the control or occupying permanent space.
+- Reset actions now reveal Nature & wildlife when they select Auto, while all
+  section summaries remain keyboard-operable through native browser behavior.
+- Updated the beginner guidance and added focused structure and behavior coverage.
+
+## 2026-07-19 — Session undo and redo
+
+- Added visible Undo and Redo controls that restore the complete preset and
+  adjustment recipe through the existing revision-ordered enhancement path.
+- Stored history with each in-memory session so it survives refresh and recent
+  edit reopening without duplicating source or rendered image buffers.
+- Capped each history at 50 recipes and discarded the Redo branch when a new edit
+  follows Undo.
+- Added interface, navigation, branching, and history-limit regression coverage;
+  moved the slider-control evaluation to the Later backlog as requested.
+
 ## 2026-07-19 — Slider controls evaluation backlog
 
 - Added a high-priority roadmap item to evaluate alternatives to the editor's

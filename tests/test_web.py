@@ -4,6 +4,7 @@ import cv2
 import numpy as np
 from PIL import Image
 
+from photo_enhance import web as web_module
 from photo_enhance.web import app
 
 
@@ -132,7 +133,7 @@ def test_index_has_beginner_filter_and_adjustment_guide():
 
     assert '<details class="editor-guide" id="editor-guide">' in text
     assert "<summary>New here? How to choose</summary>" in text
-    assert "<strong>Start with Auto.</strong>" in text
+    assert "<strong>Start with Creative when you want a mood.</strong>" in text
     assert "Bird Natural:" in text
     assert "Backlit Bird:" in text
     assert "White balance:" in text
@@ -145,6 +146,63 @@ def test_index_has_beginner_filter_and_adjustment_guide():
     assert 'href="#guide-finishing" data-guide-target="guide-finishing"' in text
     assert "editorGuide.open = true" in text
     assert "target.focus()" in text
+
+
+def test_editor_controls_use_a_creative_first_accordion():
+    client = app.test_client()
+    text = client.get("/").get_data(as_text=True)
+
+    creative = (
+        '<details class="control-section" id="creative-section" '
+        "data-control-section data-look-section open>"
+    )
+    nature = (
+        '<details class="control-section" id="nature-filters-section" '
+        "data-control-section data-look-section>"
+    )
+    auto = (
+        '<details class="control-section" id="auto-corrections-section" '
+        "data-control-section>"
+    )
+    nature_adjustments = (
+        '<details class="control-section" id="nature-adjustments-section" '
+        "data-control-section>"
+    )
+    finishing = (
+        '<details class="control-section" id="finishing-section" '
+        "data-control-section>"
+    )
+
+    assert creative in text
+    assert nature in text
+    assert auto in text
+    assert nature_adjustments in text
+    assert finishing in text
+    assert text.index(creative) < text.index(nature) < text.index(auto)
+    assert text.index(auto) < text.index(nature_adjustments) < text.index(finishing)
+    assert "<summary>Creative</summary>" in text
+    assert "<summary>Nature &amp; wildlife</summary>" in text
+    assert "<summary>Auto corrections</summary>" in text
+    assert "<summary>Nature adjustments</summary>" in text
+    assert "<summary>Finishing touches</summary>" in text
+    assert "section.open = section === activeSection" in text
+    assert 'append(lookIntensityControl)' in text
+
+
+def test_index_has_session_undo_and_redo_controls():
+    client = app.test_client()
+    text = client.get("/").get_data(as_text=True)
+
+    assert 'class="history-actions" role="group" aria-label="Edit history"' in text
+    assert 'id="undo-button" type="button" disabled>Undo</button>' in text
+    assert 'id="redo-button" type="button" disabled>Redo</button>' in text
+    assert "function updateHistoryControls(data = {})" in text
+    assert "async function navigateHistory(direction)" in text
+    assert "/history/${direction}`" in text
+    assert 'navigateHistory("undo")' in text
+    assert 'navigateHistory("redo")' in text
+    assert "Last adjustment undone." in text
+    assert "Adjustment restored." in text
 
 
 def test_upload_without_file_returns_400():
@@ -552,6 +610,113 @@ def test_session_state_restores_current_filter_and_intensity():
     assert body["auto_local_contrast"] == 25
     assert body["revision"] == 4
     assert body["after"] == applied.get_json()["after"]
+
+
+def test_session_history_supports_undo_redo_and_branching():
+    client = app.test_client()
+    upload = client.post(
+        "/upload",
+        data={"photo": (io.BytesIO(_jpeg_bytes()), "photo.jpg")},
+        content_type="multipart/form-data",
+    ).get_json()
+    session_id = upload["session_id"]
+
+    assert upload["can_undo"] is False
+    assert upload["can_redo"] is False
+
+    first = client.post(
+        "/apply",
+        json={
+            "session_id": session_id,
+            "preset": "warm_film",
+            "intensity": 35,
+            "revision": 1,
+        },
+    ).get_json()
+    second = client.post(
+        "/apply",
+        json={
+            "session_id": session_id,
+            "preset": "cool_moody",
+            "intensity": 70,
+            "revision": 2,
+        },
+    ).get_json()
+
+    assert first["can_undo"] is True
+    assert second["can_redo"] is False
+
+    undone = client.post(
+        f"/sessions/{session_id}/history/undo", json={"revision": 3}
+    ).get_json()
+    assert undone["preset"] == "warm_film"
+    assert undone["intensity"] == 35
+    assert undone["can_undo"] is True
+    assert undone["can_redo"] is True
+
+    redone = client.post(
+        f"/sessions/{session_id}/history/redo", json={"revision": 4}
+    ).get_json()
+    assert redone["preset"] == "cool_moody"
+    assert redone["intensity"] == 70
+    assert redone["can_redo"] is False
+
+    client.post(f"/sessions/{session_id}/history/undo", json={"revision": 5})
+    branched = client.post(
+        "/apply",
+        json={
+            "session_id": session_id,
+            "preset": "bird_natural",
+            "intensity": 80,
+            "revision": 6,
+        },
+    ).get_json()
+    unavailable = client.post(
+        f"/sessions/{session_id}/history/redo", json={"revision": 7}
+    )
+
+    assert branched["preset"] == "bird_natural"
+    assert branched["can_redo"] is False
+    assert unavailable.status_code == 409
+    assert unavailable.get_json()["error"] == "No later edit is available."
+
+
+def test_session_history_discards_recipes_beyond_its_limit(monkeypatch):
+    monkeypatch.setattr(web_module, "HISTORY_LIMIT", 3)
+    client = app.test_client()
+    upload = client.post(
+        "/upload",
+        data={"photo": (io.BytesIO(_jpeg_bytes()), "photo.jpg")},
+        content_type="multipart/form-data",
+    ).get_json()
+    session_id = upload["session_id"]
+
+    for revision, intensity in enumerate((20, 40, 60, 80), start=1):
+        response = client.post(
+            "/apply",
+            json={
+                "session_id": session_id,
+                "preset": "warm_film",
+                "intensity": intensity,
+                "revision": revision,
+            },
+        )
+        assert response.status_code == 200
+
+    first_undo = client.post(
+        f"/sessions/{session_id}/history/undo", json={"revision": 5}
+    )
+    second_undo = client.post(
+        f"/sessions/{session_id}/history/undo", json={"revision": 6}
+    )
+    unavailable = client.post(
+        f"/sessions/{session_id}/history/undo", json={"revision": 7}
+    )
+
+    assert first_undo.get_json()["intensity"] == 60
+    assert second_undo.get_json()["intensity"] == 40
+    assert unavailable.status_code == 409
+    assert unavailable.get_json()["error"] == "No earlier edit is available."
 
 
 def test_recent_sessions_can_be_listed_reopened_and_removed():

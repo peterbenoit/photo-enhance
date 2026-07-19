@@ -22,7 +22,7 @@ prototype.
   versioned preset validation and reproducible settings.
 - Packaging, installed-wheel smoke tests, macOS/Linux CI, linting, formatting,
   typing, coverage, vulnerability checks, and dependency updates are established.
-- The suite currently contains 140 passing tests.
+- The suite currently contains 144 passing tests.
 
 The product no longer needs to progress by completing every historical audit
 idea. New work should improve photographs, editing flow, or a demonstrated user
@@ -66,19 +66,13 @@ old backlog.
    and a simple Auto → look → targeted fixes workflow. Make it available from a
    visible “How do I choose?” entry point near the filters, with short contextual
    links by each adjustment group rather than an extensive standalone manual.
-3. [ ] Evaluate alternatives for every adjustment slider; the current controls
-   are difficult to scan and operate precisely. Compare patterns such as stepped
-   choices, paired number inputs, direct-value entry, named ranges, and improved
-   reset/default affordances. Prototype the strongest approach and verify it
-   with pointer, keyboard, touch, and narrow-screen use before replacing the
-   sliders or preserving continuous ranges only where they provide real value.
-4. [ ] Add session-scoped undo and redo for adjustment changes. Start with a
+3. [x] Add session-scoped undo and redo for adjustment changes. Use a
    bounded in-memory recipe history; do not duplicate full-resolution pixels.
-5. [ ] Add 100% inspection with zoom and pan so detail, denoise, grain, and
+4. [ ] Add 100% inspection with zoom and pan so detail, denoise, grain, and
    sharpening decisions can be judged accurately.
-6. [ ] Add web export controls for JPEG/WebP format and quality. Keep web exports
+5. [ ] Add web export controls for JPEG/WebP format and quality. Keep web exports
    metadata-free unless a separate, explicit privacy decision changes that.
-7. [ ] Add a non-destructive recipe manifest that can be saved, inspected, and
+6. [ ] Add a non-destructive recipe manifest that can be saved, inspected, and
    applied to another compatible source in the CLI before considering broader
    preset-management features.
 
@@ -100,6 +94,10 @@ checkbox.
 
 Do not build these simply because they are technically interesting.
 
+- [ ] Revisit alternatives for the adjustment sliders when there is time and
+  energy for interaction design. Compare stepped choices, paired number inputs,
+  direct entry, named ranges, and clearer reset/default affordances across
+  pointer, keyboard, touch, and narrow-screen use.
 - [ ] `.cube` LUT import: proceed when users have LUT-based workflows that the
   existing versioned preset format cannot represent.
 - [ ] RAW import: proceed when camera-file demand justifies `rawpy`, demosaicing

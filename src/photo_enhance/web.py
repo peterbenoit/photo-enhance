@@ -45,6 +45,23 @@ MAX_DECODED_PIXELS = 40_000_000
 MAX_IMAGE_DIMENSION = 12_000
 FILTER_THUMBNAIL_MAX_DIMENSION = 320
 COMPARISON_PANEL_MAX_DIMENSION = 2400
+HISTORY_LIMIT = 50
+RECIPE_FIELDS = (
+    "preset",
+    "intensity",
+    "temperature",
+    "fade",
+    "vignette",
+    "grain",
+    "auto_white_balance",
+    "auto_levels",
+    "auto_local_contrast",
+    "shadows",
+    "highlights",
+    "vibrance",
+    "detail",
+    "denoise",
+)
 
 try:
     MAX_SESSIONS = max(1, min(100, int(os.environ.get("PHOTO_ENHANCE_MAX_SESSIONS", "20"))))
@@ -53,6 +70,10 @@ except ValueError:
 app.config["MAX_SESSIONS"] = MAX_SESSIONS
 _sessions: "OrderedDict[str, dict]" = OrderedDict()
 _sessions_lock = threading.Lock()
+
+
+def _recipe_from_session(session: dict) -> dict:
+    return {field: session[field] for field in RECIPE_FIELDS}
 
 
 def _store_session(
@@ -108,6 +129,9 @@ def _store_session(
             "grain_seed": uuid.uuid4().int & 0xFFFFFFFF,
             "revision": 0,
         }
+        session = _sessions[session_id]
+        session["history"] = [_recipe_from_session(session)]
+        session["history_index"] = 0
         _sessions.move_to_end(session_id)
         while len(_sessions) > app.config["MAX_SESSIONS"]:
             _sessions.popitem(last=False)
@@ -222,6 +246,8 @@ def _session_payload(session_id: str, session: dict) -> dict:
         "auto_recommendation": session["auto_recommendation"],
         "auto_metrics": session["auto_metrics"],
         "revision": session["revision"],
+        "can_undo": session["history_index"] > 0,
+        "can_redo": session["history_index"] < len(session["history"]) - 1,
     }
 
 
@@ -444,10 +470,8 @@ def upload():
     return jsonify(_session_payload(session_id, stored_session))
 
 
-@app.route("/apply", methods=["POST"])
-def apply():
+def _apply_recipe(data: dict):
     started_at = perf_counter()
-    data = request.get_json(silent=True) or {}
     session_id = data.get("session_id")
     preset_name = data.get("preset") or None
     intensity = data.get("intensity", 100)
@@ -574,12 +598,36 @@ def apply():
         "output_format": "JPEG preview",
         "processing_ms": round((perf_counter() - started_at) * 1000),
     }
+    applied_recipe = {
+        "preset": preset_name,
+        "intensity": intensity_percent,
+        "temperature": temperature_percent,
+        "fade": fade_percent,
+        "vignette": vignette_percent,
+        "grain": grain_percent,
+        "auto_white_balance": auto_white_balance_percent,
+        "auto_levels": auto_levels_percent,
+        "auto_local_contrast": auto_local_contrast_percent,
+        "shadows": shadows_percent,
+        "highlights": highlights_percent,
+        "vibrance": vibrance_percent,
+        "detail": detail_percent,
+        "denoise": denoise_percent,
+    }
+    history_index = data.get("_history_index")
     with _sessions_lock:
         current = _sessions.get(session_id)
         if current is None:
             return jsonify(error="Session expired or not found. Please re-upload the photo."), 400
         if requested_revision < current["revision"]:
             return jsonify(error="A newer filter request already completed.", stale=True), 409
+        if history_index is not None:
+            if (
+                not isinstance(history_index, int)
+                or not 0 <= history_index < len(current["history"])
+                or current["history"][history_index] != applied_recipe
+            ):
+                return jsonify(error="Edit history changed. Try again.", stale=True), 409
         current.update(
             result_jpeg=result_jpeg,
             result_id=uuid.uuid4().hex,
@@ -603,9 +651,49 @@ def apply():
             denoise=denoise_percent,
             revision=requested_revision,
         )
+        if history_index is None:
+            history = current["history"]
+            if history[current["history_index"]] != applied_recipe:
+                history = history[: current["history_index"] + 1]
+                history.append(applied_recipe)
+                history = history[-HISTORY_LIMIT:]
+                current["history"] = history
+                current["history_index"] = len(history) - 1
+        else:
+            current["history_index"] = history_index
         _sessions.move_to_end(session_id)
         payload = _session_payload(session_id, current)
     return jsonify(payload)
+
+
+@app.route("/apply", methods=["POST"])
+def apply():
+    data = request.get_json(silent=True) or {}
+    data.pop("_history_index", None)
+    return _apply_recipe(data)
+
+
+@app.post("/sessions/<session_id>/history/<direction>")
+def navigate_history(session_id: str, direction: str):
+    if direction not in {"undo", "redo"}:
+        return jsonify(error="Unknown history action."), 404
+    request_data = request.get_json(silent=True) or {}
+    with _sessions_lock:
+        session = _sessions.get(session_id)
+        if session is None:
+            return jsonify(error="Session expired or not found."), 404
+        offset = -1 if direction == "undo" else 1
+        target_index = session["history_index"] + offset
+        if not 0 <= target_index < len(session["history"]):
+            label = "earlier" if direction == "undo" else "later"
+            return jsonify(error=f"No {label} edit is available."), 409
+        recipe = session["history"][target_index].copy()
+    recipe.update(
+        session_id=session_id,
+        revision=request_data.get("revision"),
+        _history_index=target_index,
+    )
+    return _apply_recipe(recipe)
 
 
 def main():
