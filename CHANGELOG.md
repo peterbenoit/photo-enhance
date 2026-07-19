@@ -2,6 +2,17 @@
 
 All notable changes to this project are logged here, newest first.
 
+## 2026-07-19 — Product roadmap re-evaluation
+
+- Replaced the original audit-style backlog with a roadmap grounded in the
+  current feature-complete MVP rather than its 2026-07-15 starting point.
+- Consolidated scattered quality, evaluation, edge-case, and performance tasks
+  into one real-photo evidence loop with a concrete definition of done.
+- Prioritized visible editor work—reset actions, undo/redo, 100% inspection,
+  web export controls, and reproducible recipes—over more scaffolding.
+- Moved RAW, `.cube` LUT, and ML enhancement behind explicit user-demand gates
+  and retired duplicate milestone and already-completed foundation checklists.
+
 ## 2026-07-19 — CLI comparison exports
 
 - Added `--comparison` to write a labeled, metadata-free before/after JPEG next
